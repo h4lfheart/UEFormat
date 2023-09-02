@@ -8,6 +8,7 @@ import os
 import io
 import time
 import gzip
+import json
 from mathutils import Vector, Matrix, Quaternion, Euler
 from math import *
 
@@ -18,17 +19,17 @@ import zstd
 # ---------- ADDON ---------- #
 
 bl_info = {
-    "name": "Unreal Format (.uemodel / .ueanim / .ueworld)",
+    "name": "UE Format (.uemodel / .ueanim / .ueworld)",
     "author": "Half",
     "version": (1, 0, 0),
     "blender": (3, 1, 0),
-    "location": "View3D > Sidebar > Unreal Format",
+    "location": "View3D > Sidebar > UE Format",
     "category": "Import",
 }
 
 class UFPanel(bpy.types.Panel):
-    bl_category = "Unreal Format"
-    bl_label = "Unreal Format"
+    bl_category = "UE Format"
+    bl_label = "UE Format"
     bl_region_type = 'UI'
     bl_space_type = 'VIEW_3D'
     
@@ -126,6 +127,23 @@ if __name__ == "__main__":
 def bytes_to_str(in_bytes):
     return in_bytes.rstrip(b'\x00').decode()
 
+def get_case_insensitive(source, string):
+    for item in source:
+        if item.name.lower() == string.lower():
+            return item
+
+def get_active_armature():
+    obj = bpy.context.object
+    if obj is None:
+        return
+    
+    if obj.type == "ARMATURE":
+        return obj
+    elif obj.type == "MESH":
+        for modifier in obj.modifiers:
+            if modifier.type == "ARMATURE":
+                return modifier.object
+
 class FArchiveReader:
     data = None
     size = 0
@@ -200,8 +218,6 @@ class FArchiveReader:
         for counter in range(count):
             array.append(predicate(self))
         return array
-    
-    
 
 class UEModel:
     vertices = []
@@ -295,18 +311,20 @@ class Track:
         self.keys = ar.read_bulk_array(lambda ar: BoneKey(ar))
         
 class BoneKey:
+    frame = -1
     position = []
     rotation = []
     scale = []
 
     def __init__(self, ar: FArchiveReader):
+        self.frame = ar.read_int()
         self.position = [pos * bpy.context.scene.uf_settings.scale for pos in ar.read_float_vector(3)]
         self.rotation = ar.read_float_vector(4)
         self.scale = ar.read_float_vector(3)
         
 # ---------- IMPORT FUNCTIONS ---------- #
 
-MAGIC = "UNREALFORMAT"
+MAGIC = "UEFORMAT"
 MODEL_IDENTIFIER = "UEMODEL"
 ANIM_IDENTIFIER = "UEANIM"
 
@@ -496,14 +514,15 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
         leaf_group.color_set = 'THEME03'
 
         unused_group = armature_object.pose.bone_groups.new(name='Weightless Bones')
-        unused_group.color_set = 'THEME10'
+        unused_group.color_set = 'THEME14'
 
         for bone in armature_object.pose.bones:
-            if len(bone.children) == 0:
-                bone.bone_group = leaf_group
-
             if mesh_object.vertex_groups.get(bone.name) is None:
                 bone.bone_group = unused_group
+                continue
+                
+            if len(bone.children) == 0:
+                bone.bone_group = leaf_group
 
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -513,7 +532,9 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
         bpy.ops.object.mode_set(mode='EDIT')
         for socket in data.sockets:
             socket_bone = edit_bones.new(socket.name)
-            parent_bone = edit_bones.get(socket.parent_name)
+            parent_bone = get_case_insensitive(edit_bones, socket.parent_name)
+            if parent_bone is None:
+                continue
             socket_bone.parent = parent_bone
             socket_bone.length = bpy.context.scene.uf_settings.bone_length * bpy.context.scene.uf_settings.scale
             socket_bone.matrix = parent_bone.matrix @ Matrix.Translation(socket.position) @ Quaternion((socket.rotation[3], socket.rotation[0], socket.rotation[1], socket.rotation[2])).to_matrix().to_4x4() # xyzw -> wxyz
@@ -544,3 +565,49 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
         else:
             ar.skip(byte_size)
     
+    armature = get_active_armature()
+    
+    action = bpy.data.actions.new(name = name)
+    armature.animation_data_create()
+    armature.animation_data.action = action
+    
+    pose_bones = armature.pose.bones
+    for track in data.tracks:
+        bone = get_case_insensitive(pose_bones, track.name)
+        if bone is None:
+            continue
+        
+        def create_fcurves(name, count):
+            path = bone.path_from_id(name)
+            curves = []
+            for i in range(count):
+                curve = action.fcurves.new(path, index = i)
+                curve.keyframe_points.add(len(track.keys))
+                curves.append(curve)
+            return curves
+        
+        loc_curves = create_fcurves("location", 3)
+        rot_curves = create_fcurves("rotation_quaternion", 4)
+        scale_curves = create_fcurves("scale", 3)
+        
+        for index, key in enumerate(track.keys):
+            frame = key.frame
+            
+            def add_key(curves, vector):
+                for i in range(len(vector)):
+                    curves[i].keyframe_points[index].co = frame, vector[i]
+                    curves[i].keyframe_points[index].interpolation = "LINEAR"
+                    
+            if bone.parent is None:
+                bone.matrix.translation = Vector(key.position)
+            else:
+                bone.matrix.translation = bone.parent.matrix @ Vector(key.position)
+            add_key(loc_curves, bone.location)
+            
+            if bone.parent is None:
+                bone.rotation_quaternion = Quaternion((key.rotation[3], key.rotation[0], key.rotation[1], key.rotation[2]))
+            else:
+                bone.matrix = bone.parent.matrix @ Quaternion((key.rotation[3], key.rotation[0], key.rotation[1], key.rotation[2])).to_matrix().to_4x4()
+            add_key(rot_curves, bone.rotation_quaternion)
+            
+            add_key(scale_curves, key.scale)
