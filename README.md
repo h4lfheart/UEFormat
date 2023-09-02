@@ -17,7 +17,8 @@ A model and animation export format created for Unreal Engine game asset extract
 - Morph Targets
 
 ### Animation (.ueanim)
-- TBD
+- Bone Tracks
+- Curves (TBD)
 
 ### World (.ueworld)
-- TBD
+- TBD (do we really need this)
