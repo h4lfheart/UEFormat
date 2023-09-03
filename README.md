@@ -23,4 +23,5 @@ A model and animation export format created for Unreal Engine game asset extract
 - Float Curves
 
 ### World Data (.ueworld)
-- TBD (do we really need this)
+- Mesh Actors
+- Lights (TODO)
