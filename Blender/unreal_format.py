@@ -304,23 +304,38 @@ class UEAnim:
     
 class Track:
     name = ""
-    keys = []
+    position_keys = []
+    rotation_keys = []
+    scale_keys = []
 
     def __init__(self, ar: FArchiveReader):
         self.name = ar.read_fstring()
-        self.keys = ar.read_bulk_array(lambda ar: BoneKey(ar))
+        self.position_keys = ar.read_bulk_array(lambda ar: VectorKey(ar, bpy.context.scene.uf_settings.scale))
+        self.rotation_keys = ar.read_bulk_array(lambda ar: QuatKey(ar))
+        self.scale_keys = ar.read_bulk_array(lambda ar: VectorKey(ar))
         
-class BoneKey:
+class AnimKey:
     frame = -1
-    position = []
-    rotation = []
-    scale = []
 
     def __init__(self, ar: FArchiveReader):
         self.frame = ar.read_int()
-        self.position = [pos * bpy.context.scene.uf_settings.scale for pos in ar.read_float_vector(3)]
-        self.rotation = ar.read_float_vector(4)
-        self.scale = ar.read_float_vector(3)
+        
+class VectorKey(AnimKey):
+    value = []
+
+    def __init__(self, ar: FArchiveReader, multiplier = 1):
+        super().__init__(ar)
+        self.value = [float * multiplier for float in ar.read_float_vector(3)]
+        
+class QuatKey(AnimKey):
+    value = []
+
+    def __init__(self, ar: FArchiveReader):
+        super().__init__(ar)
+        self.value = ar.read_float_vector(4)
+    
+    def get_quat(self):
+        return Quaternion((value[3], value[0], value[1], value[2]))
         
 # ---------- IMPORT FUNCTIONS ---------- #
 
@@ -577,37 +592,39 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
         if bone is None:
             continue
         
-        def create_fcurves(name, count):
+        def create_fcurves(name, count, key_count):
             path = bone.path_from_id(name)
             curves = []
             for i in range(count):
                 curve = action.fcurves.new(path, index = i)
-                curve.keyframe_points.add(len(track.keys))
+                curve.keyframe_points.add(key_count)
                 curves.append(curve)
             return curves
         
-        loc_curves = create_fcurves("location", 3)
-        rot_curves = create_fcurves("rotation_quaternion", 4)
-        scale_curves = create_fcurves("scale", 3)
+        loc_curves = create_fcurves("location", 3, len(track.position_keys))
+        rot_curves = create_fcurves("rotation_quaternion", 4, len(track.rotation_keys))
+        scale_curves = create_fcurves("scale", 3, len(track.scale_keys))
         
-        for index, key in enumerate(track.keys):
-            frame = key.frame
-            
-            def add_key(curves, vector):
-                for i in range(len(vector)):
-                    curves[i].keyframe_points[index].co = frame, vector[i]
-                    curves[i].keyframe_points[index].interpolation = "LINEAR"
-                    
+        def add_key(curves, vector, key_index, frame):
+            for i in range(len(vector)):
+                curves[i].keyframe_points[key_index].co = frame, vector[i]
+                curves[i].keyframe_points[key_index].interpolation = "LINEAR"
+        
+        for index, key in enumerate(track.position_keys):
+            pos = Vector(key.value)
             if bone.parent is None:
-                bone.matrix.translation = Vector(key.position)
+                bone.matrix.translation = pos
             else:
-                bone.matrix.translation = bone.parent.matrix @ Vector(key.position)
-            add_key(loc_curves, bone.location)
+                bone.matrix.translation = bone.parent.matrix @ pos
+            add_key(loc_curves, bone.location, index, key.frame)
             
+        for index, key in enumerate(track.rotation_keys):
+            rot = key.get_quat()
             if bone.parent is None:
-                bone.rotation_quaternion = Quaternion((key.rotation[3], key.rotation[0], key.rotation[1], key.rotation[2]))
+                bone.rotation_quaternion = rot
             else:
-                bone.matrix = bone.parent.matrix @ Quaternion((key.rotation[3], key.rotation[0], key.rotation[1], key.rotation[2])).to_matrix().to_4x4()
-            add_key(rot_curves, bone.rotation_quaternion)
+                bone.matrix = bone.parent.matrix @ rot.to_matrix().to_4x4()
+            add_key(rot_curves, bone.rotation_quaternion, index, key.frame)
             
-            add_key(scale_curves, key.scale)
+        for index, key in enumerate(track.scale_keys):
+            add_key(scale_curves, key.scale, index, key.frame)
