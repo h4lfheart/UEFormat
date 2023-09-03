@@ -20,7 +20,7 @@ A model and animation export format created for Unreal Engine game asset extract
 - Location Keys
 - Rotation Keys
 - Scale Keys
-- Curves
+- Float Curves
 
 ### World Data (.ueworld)
 - TBD (do we really need this)

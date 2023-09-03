@@ -301,7 +301,16 @@ class UEAnim:
     num_frames = 0
     frames_per_second = 0
     tracks = []
+    curves = []
     
+class Curve:
+    name = ""
+    keys = []
+
+    def __init__(self, ar: FArchiveReader):
+        self.name = ar.read_fstring()
+        self.keys = ar.read_bulk_array(lambda ar: FloatKey(ar))
+        
 class Track:
     name = ""
     position_keys = []
@@ -327,6 +336,9 @@ class VectorKey(AnimKey):
         super().__init__(ar)
         self.value = [float * multiplier for float in ar.read_float_vector(3)]
         
+    def get_vector(self):
+        return Vector(self.value)
+        
 class QuatKey(AnimKey):
     value = []
 
@@ -335,7 +347,14 @@ class QuatKey(AnimKey):
         self.value = ar.read_float_vector(4)
     
     def get_quat(self):
-        return Quaternion((value[3], value[0], value[1], value[2]))
+        return Quaternion((self.value[3], self.value[0], self.value[1], self.value[2]))
+    
+class FloatKey(AnimKey):
+    value = 0.0
+
+    def __init__(self, ar: FArchiveReader):
+        super().__init__(ar)
+        self.value = ar.read_float()
         
 # ---------- IMPORT FUNCTIONS ---------- #
 
@@ -577,6 +596,8 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
 
         if header_name == "TRACKS":
             data.tracks = ar.read_array(array_size, lambda ar: Track(ar))
+        elif header_name == "CURVES":
+            data.curves = ar.read_array(array_size, lambda ar: Curve(ar))
         else:
             ar.skip(byte_size)
     
@@ -586,6 +607,7 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
     armature.animation_data_create()
     armature.animation_data.action = action
     
+    # bone anim data
     pose_bones = armature.pose.bones
     for track in data.tracks:
         bone = get_case_insensitive(pose_bones, track.name)
@@ -601,22 +623,27 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
                 curves.append(curve)
             return curves
         
-        loc_curves = create_fcurves("location", 3, len(track.position_keys))
+        if not bpy.context.scene.uf_settings.rotation_only:
+            loc_curves = create_fcurves("location", 3, len(track.position_keys))
+            scale_curves = create_fcurves("scale", 3, len(track.scale_keys))
         rot_curves = create_fcurves("rotation_quaternion", 4, len(track.rotation_keys))
-        scale_curves = create_fcurves("scale", 3, len(track.scale_keys))
-        
+
         def add_key(curves, vector, key_index, frame):
             for i in range(len(vector)):
                 curves[i].keyframe_points[key_index].co = frame, vector[i]
                 curves[i].keyframe_points[key_index].interpolation = "LINEAR"
         
-        for index, key in enumerate(track.position_keys):
-            pos = Vector(key.value)
-            if bone.parent is None:
-                bone.matrix.translation = pos
-            else:
-                bone.matrix.translation = bone.parent.matrix @ pos
-            add_key(loc_curves, bone.location, index, key.frame)
+        if not bpy.context.scene.uf_settings.rotation_only:
+            for index, key in enumerate(track.position_keys):
+                pos = key.get_vector()
+                if bone.parent is None:
+                    bone.matrix.translation = pos
+                else:
+                    bone.matrix.translation = bone.parent.matrix @ pos
+                add_key(loc_curves, bone.location, index, key.frame)
+                
+            for index, key in enumerate(track.scale_keys):
+                add_key(scale_curves, key.value, index, key.frame)
             
         for index, key in enumerate(track.rotation_keys):
             rot = key.get_quat()
@@ -625,6 +652,9 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
             else:
                 bone.matrix = bone.parent.matrix @ rot.to_matrix().to_4x4()
             add_key(rot_curves, bone.rotation_quaternion, index, key.frame)
-            
-        for index, key in enumerate(track.scale_keys):
-            add_key(scale_curves, key.scale, index, key.frame)
+        
+        bone.matrix_basis.identity()
+    
+    for curve in data.curves:
+        print(curve.name)
+        
