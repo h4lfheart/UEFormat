@@ -565,15 +565,20 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
 
     # materials
     if len(data.materials) > 0:
-        for material in data.materials:
+        for i, material in enumerate(data.materials):
             if material.material_name == "":
                 mesh_data.materials.append(None)
                 continue
-            
+
             mat = bpy.data.materials.get(material.material_name)
             if mat is None:
                 mat = bpy.data.materials.new(name=material.material_name)
             mesh_data.materials.append(mat)
+
+            start_face_index = (material.first_index // 3)
+            end_face_index = start_face_index + material.num_faces
+            for face_index in range(start_face_index, end_face_index):
+                mesh_data.polygons[face_index].material_index = i
 
     # skeleton
     if len(data.bones) > 0 or len(data.sockets) > 0:
