@@ -32,13 +32,13 @@ class UFPanel(bpy.types.Panel):
     bl_label = "UE Format"
     bl_region_type = 'UI'
     bl_space_type = 'VIEW_3D'
-    
+
     def draw(self, context):
         UFPanel.draw_general_options(self, context)
         UFPanel.draw_model_options(self, context)
         UFPanel.draw_anim_options(self, context)
         UFPanel.draw_world_options(self, context)
-        
+
     @staticmethod
     def draw_general_options(self, context):
         layout = self.layout
@@ -46,7 +46,7 @@ class UFPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="General", icon="SETTINGS")
         box.row().prop(bpy.context.scene.uf_settings, "scale")
-       
+
     @staticmethod
     def draw_model_options(self, context, import_menu = False):
         layout = self.layout
@@ -55,10 +55,10 @@ class UFPanel(bpy.types.Panel):
         box.label(text="Model", icon="OUTLINER_OB_MESH")
         box.row().prop(bpy.context.scene.uf_settings, "reorient_bones")
         box.row().prop(bpy.context.scene.uf_settings, "bone_length")
-        
+
         if not import_menu:
             box.row().operator("uf.import_uemodel", icon='MESH_DATA')
-        
+
     @staticmethod
     def draw_anim_options(self, context, import_menu = False):
         layout = self.layout
@@ -66,7 +66,7 @@ class UFPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Animation", icon="ACTION")
         box.row().prop(bpy.context.scene.uf_settings, "rotation_only")
-        
+
         if not import_menu:
             box.row().operator("uf.import_ueanim", icon='ANIM')
     @staticmethod
@@ -76,74 +76,74 @@ class UFPanel(bpy.types.Panel):
         box = layout.box()
         box.label(text="World", icon="WORLD")
         box.row().prop(bpy.context.scene.uf_settings, "instance_meshes")
-        
+
         if not import_menu:
             box.row().operator("uf.import_ueworld", icon='SCENE_DATA')
-        
+
 class UFImportUEModel(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_idname = "uf.import_uemodel"
     bl_label = "Import Model"
     bl_context = 'scene'
-    
+
     filename_ext = ".uemodel"
     filter_glob: StringProperty(default="*.uemodel", options={'HIDDEN'}, maxlen=255)
     files: CollectionProperty(type=bpy.types.OperatorFileListElement, options={'HIDDEN', 'SKIP_SAVE'})
     directory: StringProperty(subtype='DIR_PATH')
-    
+
     def execute(self, context):
         for file in self.files:
             import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
 
     def draw(self, context):
-       UFPanel.draw_general_options(self, context)
-       UFPanel.draw_model_options(self, context, True)
-       
+        UFPanel.draw_general_options(self, context)
+        UFPanel.draw_model_options(self, context, True)
+
 class UFImportUEAnim(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_idname = "uf.import_ueanim"
     bl_label = "Import Animation"
     bl_context = 'scene'
-    
+
     filename_ext = ".ueanim"
     filter_glob: StringProperty(default="*.ueanim", options={'HIDDEN'}, maxlen=255)
     files: CollectionProperty(type=bpy.types.OperatorFileListElement, options={'HIDDEN', 'SKIP_SAVE'})
     directory: StringProperty(subtype='DIR_PATH')
-    
+
     def execute(self, context):
         for file in self.files:
             import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
 
     def draw(self, context):
-       UFPanel.draw_general_options(self, context)
-       UFPanel.draw_anim_options(self, context, True)
-       
+        UFPanel.draw_general_options(self, context)
+        UFPanel.draw_anim_options(self, context, True)
+
 class UFImportUEWorld(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     bl_idname = "uf.import_ueworld"
     bl_label = "Import World"
     bl_context = 'scene'
-    
+
     filename_ext = ".ueworld"
     filter_glob: StringProperty(default="*.ueworld", options={'HIDDEN'}, maxlen=255)
     files: CollectionProperty(type=bpy.types.OperatorFileListElement, options={'HIDDEN', 'SKIP_SAVE'})
     directory: StringProperty(subtype='DIR_PATH')
-    
+
     def execute(self, context):
         for file in self.files:
             import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
 
     def draw(self, context):
-       UFPanel.draw_general_options(self, context)
-       UFPanel.draw_world_options(self, context, True)
-    
+        UFPanel.draw_general_options(self, context)
+        UFPanel.draw_world_options(self, context, True)
+
 class UFSettings(bpy.types.PropertyGroup):
     scale: FloatProperty(name="Scale", default=0.01, min = 0.01)
     bone_length: FloatProperty(name="Bone Length", default=5, min = 0.1)
     reorient_bones: BoolProperty(name="Reorient Bones", default=False)
     rotation_only: BoolProperty(name="Rotation Only", default=False)
     instance_meshes: BoolProperty(name="Instance Meshes", default=True)
-    
+
 def draw_import_menu(self, context):
     self.layout.operator(UFImportUEModel.bl_idname, text = "Unreal Model (.uemodel)")
     self.layout.operator(UFImportUEAnim.bl_idname, text = "Unreal Animation (.ueanim)")
@@ -153,20 +153,20 @@ operators = [UFPanel, UFImportUEModel, UFImportUEAnim, UFImportUEWorld, UFSettin
 def register():
     for operator in operators:
         bpy.utils.register_class(operator)
-        
+
     Scene.uf_settings = PointerProperty(type=UFSettings)
     bpy.types.TOPBAR_MT_file_import.append(draw_import_menu)
 
 def unregister():
     for operator in operators:
         bpy.utils.unregister_class(operator)
-        
+
     del Scene.uf_settings
     bpy.types.TOPBAR_MT_file_import.remove(draw_import_menu)
 
 if __name__ == "__main__":
     register()
-    
+
 # ---------- IMPORT CLASSES ---------- #
 
 def bytes_to_str(in_bytes):
@@ -181,7 +181,7 @@ def get_active_armature():
     obj = bpy.context.object
     if obj is None:
         return
-    
+
     if obj.type == "ARMATURE":
         return obj
     elif obj.type == "MESH":
@@ -253,7 +253,7 @@ class FArchiveReader:
 
     def skip(self, size: int):
         self.data.read(size)
-        
+
     def read_bulk_array(self, predicate):
         count = self.read_int()
         return self.read_array(count, predicate)
@@ -276,7 +276,7 @@ class UEModel:
     weights = []
     bones = []
     sockets = []
-    
+
 class Material:
     material_name = ""
     first_index = -1
@@ -341,13 +341,13 @@ class Socket:
         self.position = [pos * bpy.context.scene.uf_settings.scale for pos in ar.read_float_vector(3)]
         self.rotation = ar.read_float_vector(4)
         self.scale = ar.read_float_vector(3)
-        
+
 class UEAnim:
     num_frames = 0
     frames_per_second = 0
     tracks = []
     curves = []
-    
+
 class Curve:
     name = ""
     keys = []
@@ -355,7 +355,7 @@ class Curve:
     def __init__(self, ar: FArchiveReader):
         self.name = ar.read_fstring()
         self.keys = ar.read_bulk_array(lambda ar: FloatKey(ar))
-        
+
 class Track:
     name = ""
     position_keys = []
@@ -367,44 +367,44 @@ class Track:
         self.position_keys = ar.read_bulk_array(lambda ar: VectorKey(ar, bpy.context.scene.uf_settings.scale))
         self.rotation_keys = ar.read_bulk_array(lambda ar: QuatKey(ar))
         self.scale_keys = ar.read_bulk_array(lambda ar: VectorKey(ar))
-        
+
 class AnimKey:
     frame = -1
 
     def __init__(self, ar: FArchiveReader):
         self.frame = ar.read_int()
-        
+
 class VectorKey(AnimKey):
     value = []
 
     def __init__(self, ar: FArchiveReader, multiplier = 1):
         super().__init__(ar)
         self.value = [float * multiplier for float in ar.read_float_vector(3)]
-        
+
     def get_vector(self):
         return Vector(self.value)
-        
+
 class QuatKey(AnimKey):
     value = []
 
     def __init__(self, ar: FArchiveReader):
         super().__init__(ar)
         self.value = ar.read_float_vector(4)
-    
+
     def get_quat(self):
         return Quaternion((self.value[3], self.value[0], self.value[1], self.value[2]))
-    
+
 class FloatKey(AnimKey):
     value = 0.0
 
     def __init__(self, ar: FArchiveReader):
         super().__init__(ar)
         self.value = ar.read_float()
-        
+
 class UEWorld:
     meshes = []
     actors = []
-    
+
 class HashedMesh:
     hash_number = 0
     data = []
@@ -414,7 +414,7 @@ class HashedMesh:
 
         data_size = ar.read_int()
         self.data = ar.read(data_size)
-        
+
 class Actor:
     mesh_hash = 0
     name = ""
@@ -429,7 +429,14 @@ class Actor:
         self.rotation = ar.read_float_vector(3)
         self.scale = ar.read_float_vector(3)
 
-        
+def linear_to_srgb(byte_color):
+    float_color = byte_color / 255
+    if float_color < 0.0031308:
+        return 0 if float_color < 0 else float_color * 12.92
+    else:
+        return 1.055 * pow(float_color, 1.0 / 2.0) - 0.055
+
+
 # ---------- IMPORT FUNCTIONS ---------- #
 
 MAGIC = "UEFORMAT"
@@ -458,7 +465,7 @@ def import_data(data, link_model: bool = True):
             compression_type = ar.read_fstring()
             uncompressed_size = ar.read_int()
             compressed_size = ar.read_int()
-            
+
             print(f"Compressed with {compression_type}")
 
             if compression_type == "GZIP":
@@ -476,7 +483,7 @@ def import_data(data, link_model: bool = True):
             return import_ueanim_data(read_archive, object_name)
         elif identifier == WORLD_IDENTIFIER:
             return import_ueworld_data(read_archive, object_name)
-        
+
 def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
     data = UEModel()
 
@@ -484,7 +491,6 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
         header_name = ar.read_fstring()
         array_size = ar.read_int()
         byte_size = ar.read_int()
-
         if header_name == "VERTICES":
             data.vertices = ar.read_array(array_size, lambda ar: [vert * bpy.context.scene.uf_settings.scale for vert in ar.read_float_vector(3)])
         elif header_name == "INDICES":
@@ -547,13 +553,14 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
 
             for delta in morph.deltas:
                 key.data[delta.vertex_index].co += Vector(delta.position)
-                
+
     # vertex colors
     if len(data.colors) > 0:
         vertex_color = mesh_data.vertex_colors.new(name="COL0", do_init=False)
         for polygon in mesh_data.polygons:
             for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
                 color = data.colors[vertex_index]
+                vertex_color.data[loop_index].color = linear_to_srgb(color[0]), linear_to_srgb(color[1]), linear_to_srgb(color[2]), linear_to_srgb(color[3])
 
     # texture coordinates
     if len(data.uvs) > 0:
@@ -565,15 +572,20 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
 
     # materials
     if len(data.materials) > 0:
-        for material in data.materials:
+        for i, material in enumerate(data.materials):
             if material.material_name == "":
                 mesh_data.materials.append(None)
                 continue
-            
+
             mat = bpy.data.materials.get(material.material_name)
             if mat is None:
                 mat = bpy.data.materials.new(name=material.material_name)
             mesh_data.materials.append(mat)
+
+            start_face_index = (material.first_index // 3)
+            end_face_index = start_face_index + material.num_faces
+            for face_index in range(start_face_index, end_face_index):
+                mesh_data.polygons[face_index].material_index = i
 
     # skeleton
     if len(data.bones) > 0 or len(data.sockets) > 0:
@@ -590,7 +602,7 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
         armature_object.select_set(True)
 
         mesh_object.parent = armature_object
-                
+
     if len(data.bones) > 0:
         # create bones
         bpy.ops.object.mode_set(mode='EDIT')
@@ -608,9 +620,9 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
                 parent_bone = edit_bones.get(data.bones[bone.parent_index].name)
                 edit_bone.parent = parent_bone
                 bone_matrix = parent_bone.matrix @ bone_matrix
-    
+
             edit_bone.matrix = bone_matrix
-            
+
         bpy.ops.object.mode_set(mode='OBJECT')
 
         # armature modifier
@@ -631,7 +643,7 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
             if mesh_object.vertex_groups.get(bone.name) is None:
                 bone.bone_group = unused_group
                 continue
-                
+
             if len(bone.children) == 0:
                 bone.bone_group = leaf_group
 
@@ -662,7 +674,7 @@ def import_uemodel_data(ar: FArchiveReader, name: str, link: bool):
 
 def import_ueanim_data(ar: FArchiveReader, name: str):
     data = UEAnim()
-    
+
     data.num_frames = ar.read_int()
     data.frames_per_second = ar.read_float()
 
@@ -677,20 +689,20 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
             data.curves = ar.read_array(array_size, lambda ar: Curve(ar))
         else:
             ar.skip(byte_size)
-    
+
     armature = get_active_armature()
-    
+
     action = bpy.data.actions.new(name = name)
     armature.animation_data_create()
     armature.animation_data.action = action
-    
+
     # bone anim data
     pose_bones = armature.pose.bones
     for track in data.tracks:
         bone = get_case_insensitive(pose_bones, track.name)
         if bone is None:
             continue
-        
+
         def create_fcurves(name, count, key_count):
             path = bone.path_from_id(name)
             curves = []
@@ -699,17 +711,17 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
                 curve.keyframe_points.add(key_count)
                 curves.append(curve)
             return curves
-        
+
         def add_key(curves, vector, key_index, frame):
             for i in range(len(vector)):
                 curves[i].keyframe_points[key_index].co = frame, vector[i]
                 curves[i].keyframe_points[key_index].interpolation = "LINEAR"
-        
+
         if not bpy.context.scene.uf_settings.rotation_only:
             loc_curves = create_fcurves("location", 3, len(track.position_keys))
             scale_curves = create_fcurves("scale", 3, len(track.scale_keys))
         rot_curves = create_fcurves("rotation_quaternion", 4, len(track.rotation_keys))
-        
+
         if not bpy.context.scene.uf_settings.rotation_only:
             for index, key in enumerate(track.position_keys):
                 pos = key.get_vector()
@@ -718,10 +730,10 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
                 else:
                     bone.matrix.translation = bone.parent.matrix @ pos
                 add_key(loc_curves, bone.location, index, key.frame)
-                
+
             for index, key in enumerate(track.scale_keys):
                 add_key(scale_curves, key.value, index, key.frame)
-            
+
         for index, key in enumerate(track.rotation_keys):
             rot = key.get_quat()
             if bone.parent is None:
@@ -729,7 +741,7 @@ def import_ueanim_data(ar: FArchiveReader, name: str):
             else:
                 bone.matrix = bone.parent.matrix @ rot.to_matrix().to_4x4()
             add_key(rot_curves, bone.rotation_quaternion, index, key.frame)
-        
+
         bone.matrix_basis.identity()
 
 def import_ueworld_data(ar: FArchiveReader, name: str):
@@ -746,11 +758,11 @@ def import_ueworld_data(ar: FArchiveReader, name: str):
             data.actors = ar.read_array(array_size, lambda ar: Actor(ar))
         else:
             ar.skip(byte_size)
-            
+
     mesh_map = {}
     for mesh in data.meshes:
         mesh_map[mesh.hash_number] = import_data(mesh.data, False)
-    
+
     for actor in data.actors:
         mesh = mesh_map[actor.mesh_hash]
         mesh_data = mesh.data if bpy.context.scene.uf_settings.instance_meshes else mesh.data.copy()
