@@ -1,7 +1,7 @@
 UE Export Format
 ------------------------------------------
 
-A model and animation export format created for Unreal Engine game asset extraction. The export format is currently supported by this [CUE4Parse Branch](https://github.com/halfuwu/CUE4Parse/tree/ue-format).
+A model and animation export format created for Unreal Engine game asset extraction. The export format is currently supported by this [CUE4Parse Branch](https://github.com/halfuwu/CUE4Parse).
 
 ### Model Data (.uemodel)
 - Vertices
