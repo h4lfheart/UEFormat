@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class UEFormat : ModuleRules
@@ -7,58 +8,70 @@ public class UEFormat : ModuleRules
 	public UEFormat(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
-		PublicIncludePaths.AddRange(
-			new string[] {
-				// ... add public include paths required here ...
-			}
-			);
-				
-		
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				// ... add other private include paths required here ...
-			}
-			);
-			
-		
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core"
-				// ... add other public dependencies that you statically link with here ...
-			}
-			);
-			
-		
-		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"CoreUObject",
-				"Engine",
-				"Slate",
-				"SlateCore",
-				"ProceduralMeshComponent",
-				"UnrealEd",
-				"Projects",
-				"MeshDescription",
-                "ToolWidgets",
+        DynamicallyLoadedModuleNames.AddRange(
+            new string[] {
+                "AssetTools",
+                "MainFrame",
+            });
 
-                "RawMesh",
-				"RenderCore",
-				"MeshBuilder",
-				"MeshUtilitiesCommon", 
-				"EditorScriptingUtilities",
-				// ... add private dependencies that you statically link with here ...	
-			}
-			);
-		
-	
-		DynamicallyLoadedModuleNames.AddRange(
-			new string[]
-			{
-				// ... add any modules that your module loads dynamically here ...
-			}
-			);
-	}
+        string PluginsPath = Path.GetFullPath(Target.RelativeEnginePath) + "Plugins/";
+        PublicIncludePaths.AddRange(
+            new string[]
+            {
+                PluginsPath + "Experimental/Animation/SkeletalMeshModelingTools/Source/SkeletalMeshModelingTools/Private"
+                // ... add public include paths required here ...
+            }
+        );
+        PrivateIncludePaths.AddRange(
+            new string[]
+            {
+                // ... add other private include paths required here ...
+            }
+        );
+        PublicIncludePathModuleNames.AddRange(
+            new string[]
+            {
+            }
+        );
+        PrivateIncludePathModuleNames.AddRange(
+            new string[]
+            {
+            }
+        );
+        PublicDependencyModuleNames.AddRange(
+            new string[]
+            {
+                "Core",
+                "MeshDescription",
+                "StaticMeshDescription",
+                "SkeletalMeshModelingTools"
+                // ... add other public dependencies that you statically link with here ...
+            }
+        );
+        PrivateDependencyModuleNames.AddRange(
+            new string[]
+            {
+                "SkeletalMeshModelingTools",
+                "ContentBrowser",
+                "Core",
+                "CoreUObject",
+                "DesktopWidgets",
+                "EditorStyle",
+                "AnimationModifiers",
+                "Engine",
+                "EditorScriptingUtilities",
+                "InputCore",
+                "Projects",
+                "UnrealEd",
+                "Slate",
+                "MeshBuilder",
+                "SlateCore",
+                "UnrealEd",
+                "ApplicationCore",
+                "MeshDescription",
+                "StaticMeshDescription"
+                // ... add private dependencies that you statically link with here ...	
+            }
+        );
+    }
 }

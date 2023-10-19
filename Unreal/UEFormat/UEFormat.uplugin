@@ -5,7 +5,7 @@
 	"FriendlyName": "UEFormat",
 	"Description": "An .uemodel/.ueanim importer for Unreal Engine",
 	"Category": "Importers",
-	"CreatedBy": "Zain",
+	"CreatedBy": "Zain / Marcel K.",
 	"CreatedByURL": "https://github.com/KaiserM21",
 	"DocsURL": "",
 	"MarketplaceURL": "",
@@ -20,9 +20,20 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
-				"ProceduralMeshComponent",
-				"EditorScriptingUtilities"
+				"EditorScriptingUtilities",
+				"SkeletalMeshModelingTools"
 			]
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "SkeletalMeshModelingTools",
+			"Enabled": true
+		}
+
 	]
 }
