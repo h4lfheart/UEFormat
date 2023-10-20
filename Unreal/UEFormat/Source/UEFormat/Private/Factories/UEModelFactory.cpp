@@ -2,7 +2,6 @@
 
 #include "../Public/Factories/UEModelFactory.h"
 #include "AssetToolsModule.h"
-#include "IMeshBuilderModule.h"
 #include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
 #include "../Public/Readers/UEModelReader.h"
@@ -46,6 +45,7 @@ UObject* UEModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Parent, EObjectFlags Flags) {
 	FName ObjectName = Data.Header.ObjectName.c_str();
 	if (Data.Bones.Num()){ ObjectName = "TEMP"; }
+
 	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Parent, ObjectName, Flags);
 
 	FMeshDescription MeshDesc;
@@ -121,44 +121,34 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 
 USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data, UStaticMesh* Mesh, EObjectFlags Flags)
 {
-	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
-	USkeletalMeshFromStaticMeshFactory* SkeletalMeshFactory = NewObject<USkeletalMeshFromStaticMeshFactory>();
-	SkeletalMeshFactory->StaticMesh = Cast<UStaticMesh>(Mesh);
-
 	FReferenceSkeleton RefSkeleton;
 	FSkeletalMeshImportData SkelMeshImportData;
 	USkeleton* Skeleton = CreateSkeleton(Mesh->GetPackage(), Flags, Data, RefSkeleton, SkelMeshImportData);
-	SkeletalMeshFactory->Skeleton = Skeleton;
 
+	USkeletalMeshFromStaticMeshFactory* SkeletalMeshFactory = NewObject<USkeletalMeshFromStaticMeshFactory>();
+	SkeletalMeshFactory->StaticMesh = Mesh;
+	SkeletalMeshFactory->Skeleton = Skeleton;
 	SkeletalMeshFactory->ReferenceSkeleton = RefSkeleton;
 
+	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(AssetTools.CreateAsset(Data.Header.ObjectName.c_str(), FPackageName::GetLongPackagePath(Mesh->GetPackage()->GetName()), USkeletalMesh::StaticClass(), SkeletalMeshFactory));
+
 	SkeletalMesh->LoadLODImportedData(0, SkelMeshImportData);
+	TArray<SkeletalMeshImportData::FRawBoneInfluence> Influences;
 	for (auto i = 0; i < Data.Weights.Num(); i++)
 	{
 		auto Weight = Data.Weights[i];
 		SkeletalMeshImportData::FRawBoneInfluence Influence;
-		Influence.BoneIndex = Weight.WeightBoneIndex;
+		Influence.BoneIndex = int32(Weight.WeightBoneIndex);
 		Influence.VertexIndex = Weight.WeightVertexIndex;
 		Influence.Weight = Weight.WeightAmount;
-		SkelMeshImportData.Influences.Add(Influence);
+		Influences.Add(Influence);
 	}
-	for (auto i = 0; i < Data.Morphs.Num(); i++)
-	{
-		auto Weight = Data.Weights[i];
-		SkeletalMeshImportData::FRawBoneInfluence Influence;
-		Influence.BoneIndex = Weight.WeightBoneIndex;
-		Influence.VertexIndex = Weight.WeightVertexIndex;
-		Influence.Weight = Weight.WeightAmount;
-		SkelMeshImportData.Influences.Add(Influence);
-	}
-
+	SkelMeshImportData.Influences = Influences;
 	SkeletalMesh->SaveLODImportedData(0, SkelMeshImportData);
+
 	SkeletalMesh->CalculateInvRefMatrices();
-	FSkeletalMeshBuildSettings BuildOptions;
-	BuildOptions.bRemoveDegenerates = true;
-	BuildOptions.bRecomputeTangents = true;
-	BuildOptions.bUseMikkTSpace = true;
+	const FSkeletalMeshBuildSettings BuildOptions;
 	SkeletalMesh->GetLODInfo(0)->BuildSettings = BuildOptions;
 	SkeletalMesh->SetImportedBounds(FBoxSphereBounds(FBoxSphereBounds3f(FBox3f(SkelMeshImportData.Points))));
 

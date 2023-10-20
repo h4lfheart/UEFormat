@@ -6,61 +6,26 @@ UEModelReader::UEModelReader(const FString Filename) {
 }
 
 template<typename T>
-void ReadArray(std::ifstream& Ar, int arraySize, TArray<T>& data) {
-	data.SetNum(arraySize);
-	for (auto i = 0; i < arraySize; i++) {
-		Ar.read(reinterpret_cast<char*>(&data[i]), sizeof(T));
+void ReadArray(std::ifstream& Ar, int ArraySize, TArray<T>& Data) {
+	Data.SetNum(ArraySize);
+	for (auto i = 0; i < ArraySize; i++) {
+		Ar.read(reinterpret_cast<char*>(&Data[i]), sizeof(T));
 	}
 }
 
-bool ReadBool(std::ifstream& Ar)
-{
-	char Buffer[1];
-	Ar.read(Buffer, 1);
-	return static_cast<bool>(Buffer[0]);
-}
-
-std::byte ReadByte(std::ifstream& Ar)
-{
-	char Buffer[8];
-	Ar.read(Buffer, 1);
-	return static_cast<std::byte>(Buffer[0]);
-}
-
-int32 ReadInt(std::ifstream& Ar)
-{
-	int32 Out;
-	Ar.read(reinterpret_cast<char*>(&Out), sizeof(int32));
-	return Out;
-}
-
-float ReadFloat(std::ifstream& Ar)
-{
-	float Out;
-	Ar.read(reinterpret_cast<char*>(&Out), sizeof(float));
-	return Out;
-}
-
-short ReadShort(std::ifstream& Ar)
-{
-	float Out;
-	Ar.read(reinterpret_cast<char*>(&Out), sizeof(short));
-	return Out;
-}
-
-FVector3f ReadVector(std::ifstream& Ar)
-{
-	FVector3f Out;
-	Ar.read(reinterpret_cast<char*>(&Out), sizeof(FVector3f));
-	return Out;
+template<typename T>
+T ReadData(std::ifstream& Ar) {
+	T Data;
+	Ar.read(reinterpret_cast<char*>(&Data), sizeof(T));
+	return Data;
 }
 
 FQuat4f ReadQuat(std::ifstream& Ar)
 {
-	float X = ReadFloat(Ar);
-	float Y = ReadFloat(Ar);
-	float Z = ReadFloat(Ar);
-	float W = ReadFloat(Ar);
+	float X = ReadData<float>(Ar);
+	float Y = ReadData<float>(Ar);
+	float Z = ReadData<float>(Ar);
+	float W = ReadData<float>(Ar);
 	FQuat4f Out = FQuat4f(X,Y,Z,W);
 	return Out;
 }
@@ -73,7 +38,7 @@ std::string ReadString(std::ifstream& Ar, int32 Size) {
 }
 
 std::string ReadFString(std::ifstream& Ar) {
-	int32 Size = ReadInt(Ar);
+	int32 Size = ReadData<int32>(Ar);
 	std::string String;
 	String.resize(Size);
 	Ar.read(&String[0], Size);
@@ -85,14 +50,14 @@ bool UEModelReader::Read() {
 	if (Magic != GMAGIC) return false;
 
 	Header.Identifier = ReadFString(Ar);
-	Header.FileVersionBytes = ReadByte(Ar);
+	Header.FileVersionBytes = ReadData<std::byte>(Ar);
 	Header.ObjectName = ReadFString(Ar);
-	Header.IsCompressed = ReadBool(Ar);
+	Header.IsCompressed = ReadData<bool>(Ar);
 	
 	if (Header.IsCompressed) {
 		Header.CompressionType = ReadFString(Ar);
-		Header.CompressedSize = ReadInt(Ar);
-		Header.UncompressedSize = ReadInt(Ar);
+		Header.CompressedSize = ReadData<int32>(Ar);
+		Header.UncompressedSize = ReadData<int32>(Ar);
 
 		char* UncompressedBuffer = new char[Header.UncompressedSize];
 		char* CompressedBuffer = new char[Header.CompressedSize];
@@ -113,8 +78,8 @@ void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
 	while (!Archive.eof()) {
 		FDataChunk Chunk;
 		Chunk.HeaderName = ReadFString(Archive);
-		Chunk.ArraySize = ReadInt(Archive);
-		Chunk.ByteSize = ReadInt(Archive);
+		Chunk.ArraySize = ReadData<int32>(Archive);
+		Chunk.ByteSize = ReadData<int32>(Archive);
 
 		if (Chunk.HeaderName == "VERTICES") { ReadArray(Archive, Chunk.ArraySize, Vertices); }
 		else if (Chunk.HeaderName == "INDICES") { ReadArray(Archive, Chunk.ArraySize, Indices); }
@@ -126,18 +91,18 @@ void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
 			for (auto i = 0; i < Chunk.ArraySize; i++) {
 				Materials[i].MatIndex = i;
 				Materials[i].Name = ReadFString(Archive);
-				Materials[i].FirstIndex = ReadInt(Archive);
-				Materials[i].NumFaces = ReadInt(Archive);
+				Materials[i].FirstIndex = ReadData<int32>(Archive);
+				Materials[i].NumFaces = ReadData<int32>(Archive);
 			}
 		}
 		else if (Chunk.HeaderName == "TEXCOORDS") {
 			TextureCoordinates.SetNum(Chunk.ArraySize);
 			for (auto i = 0; i < Chunk.ArraySize; i++) {
-				int32 UVCount = ReadInt(Archive);
+				int32 UVCount = ReadData<int32>(Archive);
 				TextureCoordinates[i].SetNum(UVCount);
 				for (auto j = 0; j < UVCount; j++) {
-					float U = ReadFloat(Archive);
-					float V = ReadFloat(Archive);
+					float U = ReadData<float>(Archive);
+					float V = ReadData<float>(Archive);
 					TextureCoordinates[i][j] = FVector2f(U, V);
 				}
 			}
@@ -147,39 +112,39 @@ void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
 			for (auto i = 0; i < Chunk.ArraySize; i++) {
 				Sockets[i].SocketName = ReadFString(Archive);
 				Sockets[i].SocketParentName = ReadFString(Archive);
-				Sockets[i].SocketPos = ReadVector(Archive);
+				Sockets[i].SocketPos = ReadData<FVector3f>(Archive);
 				Sockets[i].SocketRot = ReadQuat(Archive);
-				Sockets[i].SocketScale = ReadVector(Archive);
+				Sockets[i].SocketScale = ReadData<FVector3f>(Archive);
 			}
 		}
 		else if (Chunk.HeaderName == "BONES") {
 			Bones.SetNum(Chunk.ArraySize);
 			for (auto i = 0; i < Chunk.ArraySize; i++) {
 				Bones[i].BoneName = ReadFString(Archive);
-				Bones[i].BoneParentIndex = ReadInt(Archive);
-				Bones[i].BonePos = ReadVector(Archive);
+				Bones[i].BoneParentIndex = ReadData<int32>(Archive);
+				Bones[i].BonePos = ReadData<FVector3f>(Archive);
 				Bones[i].BoneRot = ReadQuat(Archive);
 			}
 		}
 		else if (Chunk.HeaderName == "WEIGHTS") {
 			Weights.SetNum(Chunk.ArraySize);
 			for (auto i = 0; i < Chunk.ArraySize; i++) {
-				Weights[i].WeightBoneIndex = ReadShort(Archive);
-				Weights[i].WeightVertexIndex = ReadInt(Archive);
-				Weights[i].WeightAmount = ReadFloat(Archive);
+				Weights[i].WeightBoneIndex = ReadData<short>(Archive);
+				Weights[i].WeightVertexIndex = ReadData<int32>(Archive);
+				Weights[i].WeightAmount = ReadData<float>(Archive);
 			}
 		}
 		else if (Chunk.HeaderName == "MORPHTARGETS") {
 			Morphs.SetNum(Chunk.ArraySize);
 			for (auto i = 0; i < Chunk.ArraySize; i++) {
 				Morphs[i].MorphName = ReadFString(Archive);
-				auto DeltaNum = ReadInt(Archive);
+				auto DeltaNum = ReadData<int32>(Archive);
 
 				Morphs[i].MorphDeltas.SetNum(DeltaNum);
 				for (auto j = 0; j < DeltaNum; j++) {
-					Morphs[i].MorphDeltas[j].MorphPosition = ReadVector(Archive);
-					Morphs[i].MorphDeltas[j].MorphNormals = ReadVector(Archive);
-					Morphs[i].MorphDeltas[j].MorphVertexIndex = ReadInt(Archive);
+					Morphs[i].MorphDeltas[j].MorphPosition = ReadData<FVector3f>(Archive);
+					Morphs[i].MorphDeltas[j].MorphNormals = ReadData<FVector3f>(Archive);
+					Morphs[i].MorphDeltas[j].MorphVertexIndex = ReadData<int32>(Archive);
 				}
 			}
 		}
