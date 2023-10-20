@@ -3,13 +3,9 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
-#include "../Public/Readers/UEModelReader.h"
+#include "Readers/UEModelReader.h"
 #include "UEModelFactory.generated.h"
 
-/**
- * Implements a factory for UnrealMODEL mesh objects.
- */
- 
 UCLASS(hidecategories=Object)
 class UEFORMAT_API UEModelFactory : public UFactory
 {
@@ -22,6 +18,4 @@ class UEFORMAT_API UEModelFactory : public UFactory
 	USkeletalMesh* CreateSkeletalMeshFromStatic(UEModelReader& Data, UStaticMesh* Mesh, EObjectFlags Flags);
 
 	USkeleton* CreateSkeleton(UPackage* ParentPackage, EObjectFlags Flags, UEModelReader& Data, FReferenceSkeleton& RefSkeleton, FSkeletalMeshImportData& SkeletalMeshImportData);
-
-	void ProcessSkeleton(const FSkeletalMeshImportData& ImportData, const USkeleton* Skeleton, FReferenceSkeleton& RefSkeleton);
 };

@@ -69,7 +69,9 @@ public class UEFormat : ModuleRules
                 "UnrealEd",
                 "ApplicationCore",
                 "MeshDescription",
-                "StaticMeshDescription"
+                "StaticMeshDescription",
+                "ToolWidgets",
+                "RenderCore"
                 // ... add private dependencies that you statically link with here ...	
             }
         );

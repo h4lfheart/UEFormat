@@ -1,23 +1,21 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "../Public/Factories/UEModelFactory.h"
+#include "Factories/UEModelFactory.h"
 #include "AssetToolsModule.h"
 #include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
-#include "../Public/Readers/UEModelReader.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "SkeletalMeshModelingToolsMeshConverter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
-
 /* UTextAssetFactory structors
  *****************************************************************************/
 UEModelFactory::UEModelFactory( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
-	Formats.Add(TEXT("uemodel;UEMODEL Mesh File"));
+	Formats.Add(TEXT("uemodel; UEMODEL Mesh File"));
 	SupportedClass = UStaticMesh::StaticClass();
 	bCreateNew = false;
 	bEditorImport = true;
@@ -91,9 +89,9 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 
 	for (auto m = 0; m < Data.Materials.Num(); m++)
 	{
-		FName MatName = Data.Materials[m].Name.c_str();
-		auto FirstIndex = Data.Materials[m].FirstIndex;
-		auto NumFaces = Data.Materials[m].NumFaces;
+		const FName MatName = Data.Materials[m].Name.c_str();
+		const auto FirstIndex = Data.Materials[m].FirstIndex;
+		const auto NumFaces = Data.Materials[m].NumFaces;
 
 		FPolygonGroupID PolygonGroup = MeshDesc.CreatePolygonGroup();
 		for (auto i = FirstIndex; i < FirstIndex + (NumFaces * 3); i += 3) //Clockwise winding order
@@ -137,7 +135,7 @@ USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data,
 	TArray<SkeletalMeshImportData::FRawBoneInfluence> Influences;
 	for (auto i = 0; i < Data.Weights.Num(); i++)
 	{
-		auto Weight = Data.Weights[i];
+		const auto Weight = Data.Weights[i];
 		SkeletalMeshImportData::FRawBoneInfluence Influence;
 		Influence.BoneIndex = int32(Weight.WeightBoneIndex);
 		Influence.VertexIndex = Weight.WeightVertexIndex;

@@ -1,6 +1,46 @@
 ﻿#pragma once
 #include <fstream>
 
+template<typename T>
+void ReadArray(std::ifstream& Ar, int ArraySize, TArray<T>& Data) {
+	Data.SetNum(ArraySize);
+	for (auto i = 0; i < ArraySize; i++) {
+		Ar.read(reinterpret_cast<char*>(&Data[i]), sizeof(T));
+	}
+}
+
+template<typename T>
+T ReadData(std::ifstream& Ar) {
+	T Data;
+	Ar.read(reinterpret_cast<char*>(&Data), sizeof(T));
+	return Data;
+}
+
+FQuat4f ReadQuat(std::ifstream& Ar)
+{
+	float X = ReadData<float>(Ar);
+	float Y = ReadData<float>(Ar);
+	float Z = ReadData<float>(Ar);
+	float W = ReadData<float>(Ar);
+	auto Data = FQuat4f(X, Y, Z, W);
+	return Data;
+}
+
+std::string ReadString(std::ifstream& Ar, int32 Size) {
+	std::string String;
+	String.resize(Size);
+	Ar.read(&String[0], Size);  // Read the data directly into the strings buffer
+	return String;
+}
+
+std::string ReadFString(std::ifstream& Ar) {
+	int32 Size = ReadData<int32>(Ar);
+	std::string String;
+	String.resize(Size);
+	Ar.read(&String[0], Size);
+	return String;
+}
+
 struct FWeightChunk
 {
 	short WeightBoneIndex;
