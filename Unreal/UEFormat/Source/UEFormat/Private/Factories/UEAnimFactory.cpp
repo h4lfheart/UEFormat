@@ -1,6 +1,7 @@
 ﻿
 #include "Factories/UEAnimFactory.h"
 #include "ComponentReregisterContext.h"
+#include "SkeletalMeshAttributes.h"
 #include "Widgets/EAnimImportOptions.h"
 #include "Widgets/UEAnimWidget.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -31,7 +32,7 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 	/* Ui
 	*****************************************************************************/
 
-	FScopedSlowTask SlowTask(5, NSLOCTEXT("UEAnimFactory", "BeginReadUEAnimFile", "Opening UEAnim file."), true);
+	FScopedSlowTask SlowTask(5, NSLOCTEXT("UEAnimFactory", "BeginReadUEAnimFile", "Reading UEAnim file"), true);
 	if (Warn->GetScopeStack().Num() == 0)
 	{
 		// We only display this slow task if there is no parent slowtask, because otherwise it is redundant and doesn't display any relevant information on the progress.
@@ -69,16 +70,17 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 	UEAnimReader Data = UEAnimReader(Filename);
 	if (!Data.Read()) return nullptr;
 
-	auto AnimSequence = NewObject<UAnimSequence>(Parent, Name, Flags);
-	
+	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(Parent, Data.Header.ObjectName.c_str(), Flags);
+	IAnimationDataController& Controller = AnimSequence->GetController();
 	USkeleton* Skeleton = SettingsImporter->Skeleton;
+
 	AnimSequence->SetSkeleton(Skeleton);
-	AnimSequence->GetController().OpenBracket(FText::FromString("Importing UEAnim Animation"));
-	AnimSequence->GetController().InitializeModel();
+	Controller.OpenBracket(FText::FromString("Importing UEAnim Animation"));
+	Controller.InitializeModel();
 	AnimSequence->ResetAnimation();
 
-	AnimSequence->GetController().SetFrameRate(FFrameRate(Data.FramesPerSecond, 1));
-	AnimSequence->GetController().SetNumberOfFrames(FFrameNumber(Data.NumFrames));
+	Controller.SetFrameRate(FFrameRate(Data.FramesPerSecond, 1));
+	Controller.SetNumberOfFrames(FFrameNumber(Data.NumFrames));
 
 	FScopedSlowTask ImportTask(Data.Tracks.Num(), FText::FromString("Importing UEAnim Animation"));
 	ImportTask.MakeDialog(false);
@@ -86,34 +88,23 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 	for (auto i = 0; i < Data.Tracks.Num(); i++)
 	{
 		ImportTask.EnterProgressFrame();
-		auto PreviewMesh = Skeleton->GetPreviewMesh();
-		auto BoneName = PreviewMesh->GetRefSkeleton().GetBoneName(i);
-		AnimSequence->GetController().AddBoneCurve(BoneName);
 
-		auto PositionalKeys = Data.Tracks[i].TrackPosKeys;
-		auto RotationalKeys = Data.Tracks[i].TrackRotKeys;
+		FName BoneName = Data.Tracks[i].TrackName.c_str();
+		auto PosKeys = Data.Tracks[i].TrackPosKeys;
+		auto RotKeys = Data.Tracks[i].TrackRotKeys;
 		auto ScaleKeys = Data.Tracks[i].TrackScaleKeys;
-		for (auto j = 0; j < PositionalKeys.Num(); j++)
-		{
-			auto Value = PositionalKeys[i].VectorValue;
-			FTransform Transform = FTransform(FVector(Value));
-			AnimSequence->AddKeyToSequence(PositionalKeys[j].Frame / Data.NumFrames, BoneName, Transform);
 
-		}
-		for (auto k = 0; k < RotationalKeys.Num(); k++)
+		for (auto j = 0; j < PosKeys.Num(); i++)
 		{
-			auto Value = RotationalKeys[k].QuatValue;
-			FTransform Transform = FTransform(FQuat(Value));
-			AnimSequence->AddKeyToSequence(PositionalKeys[k].Frame / Data.NumFrames, BoneName, Transform);
+			float Time = PosKeys[i].Frame / Data.NumFrames;
+			auto Value = PosKeys[i].VectorValue;
 		}
-		for (auto l = 0; l < ScaleKeys.Num(); l++)
-		{
-			auto Value = ScaleKeys[l].VectorValue;
-			FTransform Transform = FTransform(FQuat::Identity, FVector::ZeroVector, FVector(Value));
-			AnimSequence->AddKeyToSequence(PositionalKeys[l].Frame / Data.NumFrames, BoneName, Transform);
-		}
+
+		Controller.AddBoneCurve(BoneName);
+		//Controller.SetBoneTrackKeys(BoneName, FinalPosKeys, FinalRotKeys, FinalScaleKeys);
+
 	}
-
+	
 	if (!bImportAll)
 	{
 		SettingsImporter->bInitialized = false;
@@ -125,6 +116,31 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 
 	FAssetRegistryModule::AssetCreated(AnimSequence);
 	FGlobalComponentReregisterContext RecreateComponents;
-
+	
+	
 	return AnimSequence;
+}
+
+//test
+void UEAnimFactory::InterpolateVectorKeys(const TArray<FVectorKey>& Keys, TArray<FVector3f>& FinalKeys, int FrameIndex, float DataFramesPerSecond, FVector3f DefaultValue)
+{
+	float PrevTime = 0.0f;
+	FVector3f PrevValue = DefaultValue;
+	const float CurrentTime = FrameIndex / DataFramesPerSecond;
+
+	for (int KeyIndex = 0; KeyIndex < Keys.Num(); KeyIndex++)
+	{
+		const float Time = Keys[KeyIndex].Frame / DataFramesPerSecond;
+		const FVector3f Value = Keys[KeyIndex].VectorValue;
+
+		if (Time >= CurrentTime)
+		{
+			const float DeltaTime = Time - PrevTime;
+			const float Alpha = (DeltaTime > 0.0f) ? (CurrentTime - PrevTime) / DeltaTime : 0.0f;
+			FinalKeys[FrameIndex] = FMath::Lerp(PrevValue, Value, Alpha);
+			break;
+		}
+		PrevTime = Time;
+		PrevValue = Value;
+	}
 }

@@ -90,18 +90,12 @@ struct FUEFormatHeader
 	int32 CompressedSize;
 	int32 UncompressedSize;
 };
-struct FDataChunk
-{
-	std::string HeaderName;
-	int32 ArraySize;
-	int32 ByteSize;
-};
 class UEModelReader
 {
 public:
 	UEModelReader(const FString Filename);
 	bool Read();
-	void ReadDataFromArchive(std::ifstream& Archive);
+	void ReadArchive(std::ifstream& Archive);
 
 	const std::string GMAGIC = "UEFORMAT";
 	const std::string GZIP = "GZIP";

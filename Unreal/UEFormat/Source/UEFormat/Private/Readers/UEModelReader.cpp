@@ -30,34 +30,34 @@ bool UEModelReader::Read() {
 			FCompression::UncompressMemory(FName("NAME_Zlib"), UncompressedBuffer, Header.UncompressedSize, CompressedBuffer, Header.CompressedSize);
 		}
 	}
-	ReadDataFromArchive(Ar);
+	ReadArchive(Ar);
 	return true;
 }
 
-void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
+void UEModelReader::ReadArchive(std::ifstream& Archive) {
 	while (!Archive.eof()) {
-		FDataChunk Chunk;
-		Chunk.HeaderName = ReadFString(Archive);
-		Chunk.ArraySize = ReadData<int32>(Archive);
-		Chunk.ByteSize = ReadData<int32>(Archive);
 
-		if (Chunk.HeaderName == "VERTICES") { ReadArray(Archive, Chunk.ArraySize, Vertices); }
-		else if (Chunk.HeaderName == "INDICES") { ReadArray(Archive, Chunk.ArraySize, Indices); }
-		else if (Chunk.HeaderName == "NORMALS") { ReadArray(Archive, Chunk.ArraySize, Normals); }
-		else if (Chunk.HeaderName == "TANGENTS") { ReadArray(Archive, Chunk.ArraySize, Tangents); }
-		else if (Chunk.HeaderName == "VERTEXCOLORS") {ReadArray(Archive, Chunk.ArraySize, VertexColors); }
-		else if (Chunk.HeaderName == "MATERIALS") {
-			Materials.SetNum(Chunk.ArraySize);
-			for (auto i = 0; i < Chunk.ArraySize; i++) {
+		std::string ChunkName = ReadFString(Archive);
+		const int32 ArraySize = ReadData<int32>(Archive);
+		const int32 ByteSize = ReadData<int32>(Archive);
+
+		if (ChunkName == "VERTICES") { ReadArray(Archive, ArraySize, Vertices); }
+		else if (ChunkName == "INDICES") { ReadArray(Archive, ArraySize, Indices); }
+		else if (ChunkName == "NORMALS") { ReadArray(Archive, ArraySize, Normals); }
+		else if (ChunkName == "TANGENTS") { ReadArray(Archive, ArraySize, Tangents); }
+		else if (ChunkName == "VERTEXCOLORS") {ReadArray(Archive, ArraySize, VertexColors); }
+		else if (ChunkName == "MATERIALS") {
+			Materials.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
 				Materials[i].MatIndex = i;
 				Materials[i].Name = ReadFString(Archive);
 				Materials[i].FirstIndex = ReadData<int32>(Archive);
 				Materials[i].NumFaces = ReadData<int32>(Archive);
 			}
 		}
-		else if (Chunk.HeaderName == "TEXCOORDS") {
-			TextureCoordinates.SetNum(Chunk.ArraySize);
-			for (auto i = 0; i < Chunk.ArraySize; i++) {
+		else if (ChunkName == "TEXCOORDS") {
+			TextureCoordinates.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
 				int32 UVCount = ReadData<int32>(Archive);
 				TextureCoordinates[i].SetNum(UVCount);
 				for (auto j = 0; j < UVCount; j++) {
@@ -67,9 +67,9 @@ void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
 				}
 			}
 		}
-		else if (Chunk.HeaderName == "SOCKETS") {
-			Sockets.SetNum(Chunk.ArraySize);
-			for (auto i = 0; i < Chunk.ArraySize; i++) {
+		else if (ChunkName == "SOCKETS") {
+			Sockets.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
 				Sockets[i].SocketName = ReadFString(Archive);
 				Sockets[i].SocketParentName = ReadFString(Archive);
 				Sockets[i].SocketPos = ReadData<FVector3f>(Archive);
@@ -77,26 +77,26 @@ void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
 				Sockets[i].SocketScale = ReadData<FVector3f>(Archive);
 			}
 		}
-		else if (Chunk.HeaderName == "BONES") {
-			Bones.SetNum(Chunk.ArraySize);
-			for (auto i = 0; i < Chunk.ArraySize; i++) {
+		else if (ChunkName == "BONES") {
+			Bones.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
 				Bones[i].BoneName = ReadFString(Archive);
 				Bones[i].BoneParentIndex = ReadData<int32>(Archive);
 				Bones[i].BonePos = ReadData<FVector3f>(Archive);
 				Bones[i].BoneRot = ReadQuat(Archive);
 			}
 		}
-		else if (Chunk.HeaderName == "WEIGHTS") {
-			Weights.SetNum(Chunk.ArraySize);
-			for (auto i = 0; i < Chunk.ArraySize; i++) {
+		else if (ChunkName == "WEIGHTS") {
+			Weights.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
 				Weights[i].WeightBoneIndex = ReadData<short>(Archive);
 				Weights[i].WeightVertexIndex = ReadData<int32>(Archive);
 				Weights[i].WeightAmount = ReadData<float>(Archive);
 			}
 		}
-		else if (Chunk.HeaderName == "MORPHTARGETS") {
-			Morphs.SetNum(Chunk.ArraySize);
-			for (auto i = 0; i < Chunk.ArraySize; i++) {
+		else if (ChunkName == "MORPHTARGETS") {
+			Morphs.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
 				Morphs[i].MorphName = ReadFString(Archive);
 				auto DeltaNum = ReadData<int32>(Archive);
 
@@ -109,7 +109,7 @@ void UEModelReader::ReadDataFromArchive(std::ifstream& Archive) {
 			}
 		}
 		else {
-			Archive.ignore(Chunk.ByteSize);
+			Archive.ignore(ByteSize);
 		}
 	}
 	Archive.close();

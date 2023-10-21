@@ -35,6 +35,7 @@ class UEAnimReader
 public:
 	UEAnimReader(const FString Filename);
 	bool Read();
+	void ReadArchive(std::ifstream& Archive);
 
 	const std::string GMAGIC = "UEFORMAT";
 	const std::string GZIP = "GZIP";
@@ -43,7 +44,7 @@ public:
 
 	FUEFormatHeader Header;
 	int32 NumFrames;
-	int32 FramesPerSecond;
+	float FramesPerSecond;
 	TArray<FTrack> Tracks;
 	TArray<FCurve> Curves;
 
