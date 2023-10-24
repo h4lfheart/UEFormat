@@ -56,7 +56,6 @@ void UEAnimReader::ReadArchive(std::ifstream& Archive)
 				}
 			}
 		}
-		/*
 		else if (ChunkName == "CURVES")
 		{
 			Curves.SetNum(ArraySize);
@@ -70,7 +69,6 @@ void UEAnimReader::ReadArchive(std::ifstream& Archive)
 				}
 			}
 		}
-		*/
 		else {
 			Archive.ignore(ByteSize);
 		}

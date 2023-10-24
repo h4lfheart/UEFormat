@@ -41,6 +41,49 @@ std::string ReadFString(std::ifstream& Ar) {
 	return String;
 }
 
+template<typename T>
+void ReadBufferArray(const char* DataArray, int& Offset, int ArraySize, TArray<T>& Data) {
+	Data.SetNum(ArraySize);
+	for (auto i = 0; i < ArraySize; i++) {
+		std::memcpy(&Data[i], &DataArray[Offset], sizeof(T));
+		Offset += sizeof(T);
+	}
+}
+
+template<typename T>
+T ReadBufferData(const char* DataArray, int& Offset) {
+	T Data;
+	std::memcpy(&Data, &DataArray[Offset], sizeof(T));
+	Offset += sizeof(T);
+	return Data;
+}
+
+FQuat4f ReadBufferQuat(const char* DataArray, int& Offset) {
+	float X = ReadBufferData<float>(DataArray, Offset);
+	float Y = ReadBufferData<float>(DataArray, Offset);
+	float Z = ReadBufferData<float>(DataArray, Offset);
+	float W = ReadBufferData<float>(DataArray, Offset);
+	auto Data = FQuat4f(X, Y, Z, W);
+	return Data;
+}
+
+std::string ReadBufferString(const char* DataArray, int& Offset, int32 Size) {
+	std::string String;
+	String.resize(Size);
+	std::memcpy(&String[0], &DataArray[Offset], Size);
+	Offset += Size;
+	return String;
+}
+
+std::string ReadBufferFString(const char* DataArray, int& Offset) {
+	int32 Size = ReadBufferData<int32>(DataArray, Offset);
+	std::string String;
+	String.resize(Size);
+	std::memcpy(&String[0], &DataArray[Offset], Size);
+	Offset += Size;
+	return String;
+}
+
 struct FWeightChunk
 {
 	short WeightBoneIndex;
@@ -95,11 +138,9 @@ class UEModelReader
 public:
 	UEModelReader(const FString Filename);
 	bool Read();
-	void ReadArchive(std::ifstream& Archive);
+	void ReadBuffer(const char* Buffer, int BufferSize);
 
 	const std::string GMAGIC = "UEFORMAT";
-	const std::string GZIP = "GZIP";
-	const std::string ZSTD = "ZSTD";
 
 	FUEFormatHeader Header;
 	TArray<FVector3f> Vertices;

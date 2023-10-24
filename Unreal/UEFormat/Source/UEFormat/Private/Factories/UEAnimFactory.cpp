@@ -10,11 +10,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Readers/UEAnimReader.h"
 
-/* UTextAssetFactory structors
- *****************************************************************************/
-
-	UEAnimFactory::UEAnimFactory(const FObjectInitializer & ObjectInitializer)
-	: Super(ObjectInitializer)
+UEAnimFactory::UEAnimFactory(const FObjectInitializer & ObjectInitializer): Super(ObjectInitializer)
 {
 	Formats.Add(TEXT("ueanim; UEANIM Animation File"));
 	SupportedClass = UAnimSequence::StaticClass();
@@ -23,25 +19,16 @@
 	SettingsImporter = CreateDefaultSubobject<UEAnimImportOptions>(TEXT("Anim Options"));
 }
 
-/* UFactory overrides
- *****************************************************************************/
-
 UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName Name, EObjectFlags Flags, const FString& Filename, const TCHAR* Params, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
-
-	/* Ui
-	*****************************************************************************/
-
 	FScopedSlowTask SlowTask(5, NSLOCTEXT("UEAnimFactory", "BeginReadUEAnimFile", "Reading UEAnim file"), true);
 	if (Warn->GetScopeStack().Num() == 0)
 	{
-		// We only display this slow task if there is no parent slowtask, because otherwise it is redundant and doesn't display any relevant information on the progress.
-		// It is primarly used to regroup all the smaller import sub-tasks for a smoother progression.
 		SlowTask.MakeDialog(true);
 	}
 	SlowTask.EnterProgressFrame(0);
 
-	// picker
+	//Ui
 	if (SettingsImporter->bInitialized == false)
 	{
 		TSharedPtr<UEAnimWidget> ImportOptionsWindow;
@@ -52,13 +39,10 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 			ParentWindow = MainFrame.GetParentWindow();
 		}
 
-		TSharedRef<SWindow> Window = SNew(SWindow)
-			.Title(FText::FromString(TEXT("UEAnim Import Options")))
-			.SizingRule(ESizingRule::Autosized);
+		TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("UEAnim Import Options"))).SizingRule(ESizingRule::Autosized);
 		Window->SetContent
 		(
-			SAssignNew(ImportOptionsWindow, UEAnimWidget)
-			.WidgetWindow(Window)
+			SAssignNew(ImportOptionsWindow, UEAnimWidget).WidgetWindow(Window)
 		);
 		SettingsImporter = ImportOptionsWindow.Get()->Stun;
 		FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
@@ -94,15 +78,61 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 		auto RotKeys = Data.Tracks[i].TrackRotKeys;
 		auto ScaleKeys = Data.Tracks[i].TrackScaleKeys;
 
-		for (auto j = 0; j < PosKeys.Num(); i++)
+		TArray<FVector3f> FinalPosKeys;
+		TArray<FQuat4f> FinalRotKeys;
+		TArray<FVector3f> FinalScaleKeys;
+		FinalPosKeys.SetNum(Data.NumFrames);
+		FinalRotKeys.SetNum(Data.NumFrames);
+		FinalScaleKeys.SetNum(Data.NumFrames);
+
+		FVector3f PrevPos = FVector3f::OneVector;
+		FQuat4f PrevRot = FQuat4f::Identity;
+		FVector3f PrevScale = FVector3f::OneVector;
+
+		for (auto j = 0; j < Data.NumFrames; j++)
 		{
-			float Time = PosKeys[i].Frame / Data.NumFrames;
-			auto Value = PosKeys[i].VectorValue;
+			for (auto k = 0; k < PosKeys.Num(); k++)
+			{
+				auto Frame = PosKeys[k].Frame;
+				if (Frame == j)
+				{
+					FinalPosKeys[j] = PosKeys[k].VectorValue;
+					PrevPos = PosKeys[k].VectorValue;
+				}
+				else
+				{
+					FinalPosKeys[j] = PrevPos;
+				}
+			}
+			for (auto k = 0; k < RotKeys.Num(); k++)
+			{
+				auto Frame = RotKeys[k].Frame;
+				if (Frame == j)
+				{
+					FinalRotKeys[j] = RotKeys[k].QuatValue;
+					PrevRot = RotKeys[k].QuatValue;
+				}
+				else
+				{
+					FinalRotKeys[j] = PrevRot;
+				}
+			}
+			for (auto k = 0; k < ScaleKeys.Num(); k++)
+			{
+				auto Frame = ScaleKeys[k].Frame;
+				if (Frame == j)
+				{
+					FinalScaleKeys[j] = ScaleKeys[k].VectorValue;
+					PrevScale = ScaleKeys[k].VectorValue;
+				}
+				else
+				{
+					FinalScaleKeys[j] = PrevScale;
+				}
+			}
 		}
-
 		Controller.AddBoneCurve(BoneName);
-		//Controller.SetBoneTrackKeys(BoneName, FinalPosKeys, FinalRotKeys, FinalScaleKeys);
-
+		Controller.SetBoneTrackKeys(BoneName, FinalPosKeys, FinalRotKeys, FinalScaleKeys);
 	}
 	
 	if (!bImportAll)
@@ -116,31 +146,6 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 
 	FAssetRegistryModule::AssetCreated(AnimSequence);
 	FGlobalComponentReregisterContext RecreateComponents;
-	
-	
+
 	return AnimSequence;
-}
-
-//test
-void UEAnimFactory::InterpolateVectorKeys(const TArray<FVectorKey>& Keys, TArray<FVector3f>& FinalKeys, int FrameIndex, float DataFramesPerSecond, FVector3f DefaultValue)
-{
-	float PrevTime = 0.0f;
-	FVector3f PrevValue = DefaultValue;
-	const float CurrentTime = FrameIndex / DataFramesPerSecond;
-
-	for (int KeyIndex = 0; KeyIndex < Keys.Num(); KeyIndex++)
-	{
-		const float Time = Keys[KeyIndex].Frame / DataFramesPerSecond;
-		const FVector3f Value = Keys[KeyIndex].VectorValue;
-
-		if (Time >= CurrentTime)
-		{
-			const float DeltaTime = Time - PrevTime;
-			const float Alpha = (DeltaTime > 0.0f) ? (CurrentTime - PrevTime) / DeltaTime : 0.0f;
-			FinalKeys[FrameIndex] = FMath::Lerp(PrevValue, Value, Alpha);
-			break;
-		}
-		PrevTime = Time;
-		PrevValue = Value;
-	}
 }
