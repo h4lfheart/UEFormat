@@ -2,8 +2,8 @@
 #include "Factories/UEAnimFactory.h"
 #include "ComponentReregisterContext.h"
 #include "SkeletalMeshAttributes.h"
-#include "Widgets/EAnimImportOptions.h"
-#include "Widgets/UEAnimWidget.h"
+#include "Widgets/Anim/UAnimImportOptions.h"
+#include "Widgets/Anim/UAnimWidget.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/FeedbackContext.h"
@@ -16,7 +16,7 @@ UEAnimFactory::UEAnimFactory(const FObjectInitializer & ObjectInitializer): Supe
 	SupportedClass = UAnimSequence::StaticClass();
 	bCreateNew = false;
 	bEditorImport = true;
-	SettingsImporter = CreateDefaultSubobject<UEAnimImportOptions>(TEXT("Anim Options"));
+	SettingsImporter = CreateDefaultSubobject<UAnimImportOptions>(TEXT("Anim Options"));
 }
 
 UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName Name, EObjectFlags Flags, const FString& Filename, const TCHAR* Params, FFeedbackContext* Warn, bool& bOutOperationCanceled)
@@ -28,10 +28,13 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 	}
 	SlowTask.EnterProgressFrame(0);
 
+	UEAnimReader Data = UEAnimReader(Filename);
+	if (!Data.Read()) return nullptr;
+
 	//Ui
 	if (SettingsImporter->bInitialized == false)
 	{
-		TSharedPtr<UEAnimWidget> ImportOptionsWindow;
+		TSharedPtr<UAnimWidget> ImportOptionsWindow;
 		TSharedPtr<SWindow> ParentWindow;
 		if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
 		{
@@ -39,10 +42,10 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 			ParentWindow = MainFrame.GetParentWindow();
 		}
 
-		TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("UEAnim Import Options"))).SizingRule(ESizingRule::Autosized);
+		TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("Animation Import Options"))).SizingRule(ESizingRule::Autosized);
 		Window->SetContent
 		(
-			SAssignNew(ImportOptionsWindow, UEAnimWidget).WidgetWindow(Window)
+			SAssignNew(ImportOptionsWindow, UAnimWidget).WidgetWindow(Window)
 		);
 		SettingsImporter = ImportOptionsWindow.Get()->Stun;
 		FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
@@ -50,9 +53,6 @@ UObject* UEAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName 
 		bImportAll = ImportOptionsWindow.Get()->ShouldImportAll();
 		SettingsImporter->bInitialized = true;
 	}
-
-	UEAnimReader Data = UEAnimReader(Filename);
-	if (!Data.Read()) return nullptr;
 
 	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(Parent, Data.Header.ObjectName.c_str(), Flags);
 	IAnimationDataController& Controller = AnimSequence->GetController();

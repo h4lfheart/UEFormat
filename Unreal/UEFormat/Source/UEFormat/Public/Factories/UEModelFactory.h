@@ -4,18 +4,25 @@
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
 #include "Readers/UEModelReader.h"
+#include <Widgets/SkelMesh/USkelMeshImportOptions.h>
 #include "UEModelFactory.generated.h"
+
 
 UCLASS(hidecategories=Object)
 class UEFORMAT_API UEModelFactory : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
+	UPROPERTY()
+	USkelMeshImportOptions* SettingsImporter;
+	bool bImport;
+	bool bImportAll;
+
 	virtual UObject* FactoryCreateFile(UClass* Class, UObject* Parent, FName Name, EObjectFlags Flags, const FString& Filename, const TCHAR* Params, FFeedbackContext* Warn, bool& bOutOperationCanceled) override;
 
 	UStaticMesh* CreateStaticMesh(UEModelReader& Data, UObject* Parent, EObjectFlags Flags);
 
-	USkeletalMesh* CreateSkeletalMeshFromStatic(UEModelReader& Data, UStaticMesh* Mesh, EObjectFlags Flags);
+	USkeletalMesh* CreateSkeletalMeshFromStatic(UEModelReader& Data, UStaticMesh* Mesh, USkeleton* Skeleton, EObjectFlags Flags);
 
 	USkeleton* CreateSkeleton(UPackage* ParentPackage, EObjectFlags Flags, UEModelReader& Data, FReferenceSkeleton& RefSkeleton, FSkeletalMeshImportData& SkeletalMeshImportData);
 };

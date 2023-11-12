@@ -9,6 +9,9 @@
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "SkeletalMeshModelingToolsMeshConverter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Widgets/SkelMesh/USkelMeshWidget.h"
+#include "Widgets/SkelMesh/USkelMeshWidget.h"
+#include <Interfaces/IMainFrameModule.h>
 
 /* UTextAssetFactory structors
  *****************************************************************************/
@@ -19,6 +22,7 @@ UEModelFactory::UEModelFactory( const FObjectInitializer& ObjectInitializer )
 	SupportedClass = UStaticMesh::StaticClass();
 	bCreateNew = false;
 	bEditorImport = true;
+	SettingsImporter = CreateDefaultSubobject<USkelMeshImportOptions>(TEXT("Skeletal Mesh Options"));
 }
 
 /* UFactory overrides
@@ -32,7 +36,30 @@ UObject* UEModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 
 	if (Data.Bones.Num())
 	{
-		USkeletalMesh* SkeletalMesh = CreateSkeletalMeshFromStatic(Data, Mesh, Flags);
+		//Ui
+		if (SettingsImporter->bInitialized == false)
+		{
+			TSharedPtr<USkelMeshWidget> ImportOptionsWindow;
+			TSharedPtr<SWindow> ParentWindow;
+			if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+			{
+				IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+				ParentWindow = MainFrame.GetParentWindow();
+			}
+
+			TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("Skeletal Mesh Import Options"))).SizingRule(ESizingRule::Autosized);
+			Window->SetContent
+			(
+				SAssignNew(ImportOptionsWindow, USkelMeshWidget).WidgetWindow(Window)
+			);
+			SettingsImporter = ImportOptionsWindow.Get()->Stun;
+			FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+			bImport = ImportOptionsWindow.Get()->ShouldImport();
+			bImportAll = ImportOptionsWindow.Get()->ShouldImportAll();
+			SettingsImporter->bInitialized = true;
+		}
+		USkeleton* Skeleton = SettingsImporter->Skeleton;
+		USkeletalMesh* SkeletalMesh = CreateSkeletalMeshFromStatic(Data, Mesh, Skeleton, Flags);
 		Mesh->RemoveFromRoot();
 		Mesh->MarkAsGarbage();
 		return SkeletalMesh;
@@ -117,11 +144,19 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 	return StaticMesh;
 }
 
-USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data, UStaticMesh* Mesh, EObjectFlags Flags)
+USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data, UStaticMesh* Mesh, USkeleton* Skeleton, EObjectFlags Flags)
 {
 	FReferenceSkeleton RefSkeleton;
 	FSkeletalMeshImportData SkelMeshImportData;
-	USkeleton* Skeleton = CreateSkeleton(Mesh->GetPackage(), Flags, Data, RefSkeleton, SkelMeshImportData);
+
+	//create new Skel if nothin selected in Ui
+	if (Skeleton == nullptr) {
+		Skeleton = CreateSkeleton(Mesh->GetPackage(), Flags, Data, RefSkeleton, SkelMeshImportData);
+	}
+	else //can only get RefSkel from existing Skel so have to do this
+	{
+		RefSkeleton = Skeleton->GetReferenceSkeleton();
+	}
 
 	USkeletalMeshFromStaticMeshFactory* SkeletalMeshFactory = NewObject<USkeletalMeshFromStaticMeshFactory>();
 	SkeletalMeshFactory->StaticMesh = Mesh;

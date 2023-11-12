@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Factories/Factory.h"
 #include "Readers/UEAnimReader.h"
-#include "Widgets/EAnimImportOptions.h"
+#include "Widgets/Anim/UAnimImportOptions.h"
 #include "UEAnimFactory.generated.h"
 
 
@@ -14,7 +14,7 @@ class UEFORMAT_API UEAnimFactory : public UFactory
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
-	UEAnimImportOptions* SettingsImporter;
+	UAnimImportOptions* SettingsImporter;
 	bool bImport;
 	bool bImportAll;
 
