@@ -71,12 +71,12 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 		FVertexInstanceID VertexInstanceID = MeshDesc.CreateVertexInstance(VertexID);
 		VertexInstanceIDs.Add(VertexInstanceID);
 
-		VertexPositions[VertexID] = Data.Vertices[i];
+		VertexPositions[VertexID] = FVector3f(Data.Vertices[i].X, -Data.Vertices[i].Y, Data.Vertices[i].Z);
 		if (Data.Normals.Num() > 0) {
-			VertexInstanceNormals[VertexInstanceID] = Data.Normals[i];
+			VertexInstanceNormals[VertexInstanceID] = FVector3f(Data.Normals[i].X, -Data.Normals[i].Y, Data.Normals[i].Z);
 		}
 		if (Data.Tangents.Num() > 0) {
-			VertexInstanceTangents[VertexInstanceID] = Data.Tangents[i];
+			VertexInstanceTangents[VertexInstanceID] = FVector3f(Data.Tangents[i].X, -Data.Tangents[i].Y, Data.Tangents[i].Z);
 		}
 		if (Data.VertexColors.Num() > 0) {
 			VertexInstanceColors[VertexInstanceID] = FVector4f(Data.VertexColors[i]);
@@ -94,12 +94,12 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 		const auto NumFaces = Data.Materials[m].NumFaces;
 
 		FPolygonGroupID PolygonGroup = MeshDesc.CreatePolygonGroup();
-		for (auto i = FirstIndex; i < FirstIndex + (NumFaces * 3); i += 3) //Clockwise winding order
+		for (auto i = FirstIndex; i < FirstIndex + (NumFaces * 3); i += 3) //Winding order
 		{
 			FVertexInstanceID& VI0 = VertexInstanceIDs[Data.Indices[i]];
 			FVertexInstanceID& VI1 = VertexInstanceIDs[Data.Indices[i + 1]];
 			FVertexInstanceID& VI2 = VertexInstanceIDs[Data.Indices[i + 2]];
-			MeshDesc.CreatePolygon(PolygonGroup, { VI0, VI2, VI1 });
+			MeshDesc.CreatePolygon(PolygonGroup, { VI0, VI1, VI2 });
 		}
 		Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroup] = MatName;
 
@@ -181,8 +181,10 @@ USkeleton* UEModelFactory::CreateSkeleton(UPackage* ParentPackage, EObjectFlags 
 		Bone.ParentIndex = (i > 0) ? Data.Bones[i].BoneParentIndex : INDEX_NONE;
 
 		FTransform3f Transform;
-		Transform.SetLocation(Data.Bones[i].BonePos);
-		Transform.SetRotation(Data.Bones[i].BoneRot);
+		auto Location = FVector3f(Data.Bones[i].BonePos.X, -Data.Bones[i].BonePos.Y, Data.Bones[i].BonePos.Z);
+		Transform.SetLocation(Location);
+		auto Rotation = FQuat4f(Data.Bones[i].BoneRot.X, -Data.Bones[i].BoneRot.Y, Data.Bones[i].BoneRot.Z, -Data.Bones[i].BoneRot.W);
+		Transform.SetRotation(Rotation);
 
 		SkeletalMeshImportData::FJointPos BonePos;
 		BonePos.Transform = Transform;
