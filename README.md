@@ -22,6 +22,6 @@ A model and animation export format created for Unreal Engine game asset extract
 - Scale Keys
 - Float Curves
 
-### World Data (.ueworld)
+### World Data (.ueworld) (Proof of Concept)
 - Mesh Actors
 - Lights (TODO)
