@@ -77,7 +77,7 @@ void UEModelReader::ReadBuffer(const char* Buffer, int BufferSize) {
 				for (auto j = 0; j < UVCount; j++) {
 					float U = ReadBufferData<float>(Buffer, offset);
 					float V = ReadBufferData<float>(Buffer, offset);
-					TextureCoordinates[i][j] = FVector2f(U, V);
+					TextureCoordinates[i][j] = FVector2f(U, 1-V);
 				}
 			}
 		}

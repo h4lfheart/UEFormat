@@ -141,6 +141,8 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 	StaticMesh->NaniteSettings.bEnabled = false;
 
 	StaticMesh->BuildFromMeshDescriptions({ &MeshDesc }, BuildParams);
+	StaticMesh->PostEditChange();
+	FAssetRegistryModule::AssetCreated(StaticMesh);
 	return StaticMesh;
 }
 
@@ -187,13 +189,13 @@ USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data,
 
 	SkeletalMesh->SetSkeleton(Skeleton);
 	SkeletalMesh->PostEditChange();
+	FAssetRegistryModule::AssetCreated(SkeletalMesh);
 
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
 	Skeleton->SetPreviewMesh(SkeletalMesh);
 	Skeleton->PostEditChange();
-
-	FAssetRegistryModule::AssetCreated(SkeletalMesh);
 	FAssetRegistryModule::AssetCreated(Skeleton);
+
 	return SkeletalMesh;
 }
 
