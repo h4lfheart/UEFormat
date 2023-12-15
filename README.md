@@ -1,7 +1,7 @@
 UE Export Format
 ------------------------------------------
 
-A model and animation export format created for Unreal Engine game asset extraction. The export format is currently supported by this [CUE4Parse Branch](https://github.com/halfuwu/CUE4Parse).
+A model and animation export format created for Unreal Engine game asset extraction. The export format is currently supported by [CUE4Parse](https://github.com/FabianFG/CUE4Parse).
 
 ### Model Data (.uemodel)
 - Vertices
@@ -20,8 +20,4 @@ A model and animation export format created for Unreal Engine game asset extract
 - Location Keys
 - Rotation Keys
 - Scale Keys
-- Float Curves
-
-### World Data (.ueworld) (Proof of Concept)
-- Mesh Actors
-- Lights (TODO)
+- Float Curve Keys
