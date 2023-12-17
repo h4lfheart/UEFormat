@@ -87,6 +87,7 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 	const auto VertexPositions = Attributes.GetVertexPositions();
 	const auto VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	const auto VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	const auto VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
 	const auto VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	const auto VertexInstanceColors = Attributes.GetVertexInstanceColors();
 
@@ -101,6 +102,7 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 		VertexPositions[VertexID] = FVector3f(Data.Vertices[i].X, -Data.Vertices[i].Y, Data.Vertices[i].Z);
 		if (Data.Normals.Num() > 0) {
 			VertexInstanceNormals[VertexInstanceID] = FVector3f(Data.Normals[i].X, -Data.Normals[i].Y, Data.Normals[i].Z);
+			VertexInstanceBinormalSigns[VertexInstanceID] = Data.Normals[i].W;
 		}
 		if (Data.Tangents.Num() > 0) {
 			VertexInstanceTangents[VertexInstanceID] = FVector3f(Data.Tangents[i].X, -Data.Tangents[i].Y, Data.Tangents[i].Z);
@@ -138,6 +140,7 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 
 	UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
 	BuildParams.bBuildSimpleCollision = false;
+	BuildParams.bFastBuild = true;
 	StaticMesh->NaniteSettings.bEnabled = false;
 
 	StaticMesh->BuildFromMeshDescriptions({ &MeshDesc }, BuildParams);

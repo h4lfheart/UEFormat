@@ -145,7 +145,7 @@ public:
 	FUEFormatHeader Header;
 	TArray<FVector3f> Vertices;
 	TArray<int32> Indices;
-	TArray<FVector3f> Normals;
+	TArray<FVector4f> Normals;
 	TArray<FVector3f> Tangents;
 	TArray<FColor> VertexColors;
 	TArray<TArray<FVector2f>> TextureCoordinates;
