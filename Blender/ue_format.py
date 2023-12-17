@@ -314,12 +314,12 @@ class UEFormatOptions:
 
 class UEModelOptions(UEFormatOptions):
 
-    def __init__(self, scale_down=True, bone_length=4.0, reorient_bones=False):
+    def __init__(self, scale_down=True, bone_length=4.0, reorient_bones=False, link=True):
         self.scale_down = scale_down
         self.scale_factor = 0.01 if scale_down else 1.0
         self.bone_length = bone_length
         self.reorient_bones = reorient_bones
-
+        self.link = link
 
 class UEAnimOptions(UEFormatOptions):
 
@@ -342,7 +342,7 @@ class UEFormatImport:
         with open(path, 'rb') as file:
             return self.import_data(file.read())
 
-    def import_data(self, data, link_model: bool = True):
+    def import_data(self, data):
         with FArchiveReader(data) as ar:
             magic = ar.read_string(len(MAGIC))
             if magic != MAGIC:
@@ -372,13 +372,13 @@ class UEFormatImport:
                     return
 
             if identifier == MODEL_IDENTIFIER:
-                return self.import_uemodel_data(read_archive, object_name, link_model)
+                return self.import_uemodel_data(read_archive, object_name)
             elif identifier == ANIM_IDENTIFIER:
                 return self.import_ueanim_data(read_archive, object_name)
             elif identifier == WORLD_IDENTIFIER:
                 return self.import_ueworld_data(read_archive, object_name)
 
-    def import_uemodel_data(self, ar: FArchiveReader, name: str, link: bool):
+    def import_uemodel_data(self, ar: FArchiveReader, name: str):
         data = UEModel()
 
         while not ar.eof():
@@ -424,7 +424,7 @@ class UEFormatImport:
 
         mesh_object = bpy.data.objects.new(name, mesh_data)
         return_object = mesh_object
-        if link:
+        if self.options.link:
             bpy.context.collection.objects.link(mesh_object)
 
         # normals
@@ -495,7 +495,7 @@ class UEFormatImport:
             armature_object.show_in_front = True
             return_object = armature_object
 
-            if link:
+            if self.options.link:
                 bpy.context.collection.objects.link(armature_object)
             bpy.context.view_layer.objects.active = armature_object
             armature_object.select_set(True)
