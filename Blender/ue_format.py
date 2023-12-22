@@ -1,26 +1,15 @@
-import bpy
-import bpy_extras
-from bpy.props import StringProperty, BoolProperty, PointerProperty, EnumProperty, FloatProperty, FloatVectorProperty, \
-    CollectionProperty
-from bpy.types import Scene
-
-import struct
-import os
-import io
-import time
 import gzip
-import json
-from mathutils import Vector, Matrix, Quaternion, Euler
-from math import *
+import io
+import os
+import struct
+import zstandard
 from enum import IntEnum, auto
 
-try:
-    import zstd
-except ImportError:
-    from pip._internal import main as pipmain
-
-    pipmain(['install', 'zstd'])
-    import zstd
+import bpy
+import bpy_extras
+from bpy.props import StringProperty, BoolProperty, PointerProperty, FloatProperty, CollectionProperty
+from bpy.types import Scene
+from mathutils import Vector, Matrix, Quaternion
 
 # ---------- ADDON ---------- #
 
@@ -331,7 +320,7 @@ class UEFormatImport:
                 if compression_type == "GZIP":
                     read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
                 elif compression_type == "ZSTD":
-                    read_archive = FArchiveReader(zstd.ZSTD_uncompress(ar.read_to_end()))
+                    read_archive = FArchiveReader(zstandard.ZstdDecompressor().decompress(ar.read_to_end(), max_output_size=uncompressed_size))
                 else:
                     Log.info(f"Unknown Compression Type: {compression_type}")
                     return
@@ -357,17 +346,17 @@ class UEFormatImport:
                 def read_normals(ar):
                     if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
                         binormal_sign = ar.read_float()
-                        
+
                     return ar.read_float_vector(3)
-                
+
                 data.normals = ar.read_array(array_size, lambda ar: read_normals(ar))
             elif header_name == "TANGENTS":
                 data.tangents = ar.read_array(array_size, lambda ar: ar.read_float_vector(3))
             elif header_name == "VERTEXCOLORS":
                 if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
-                    data.colors = ar.read_array(array_size, lambda ar: VertexColor(ar))
+                    data.colors = ar.read_array(array_size, lambda ar: VertexColor.from_reader(ar))
                 else:
-                    data.colors = [VertexColor("COL0", ar.read_bulk_array(lambda ar: ar.read_byte_vector(4)))]
+                    data.colors = [VertexColor("COL0", ar.read_array(array_size, lambda ar: ar.read_byte_vector(4)))]
 
             elif header_name == "TEXCOORDS":
                 data.uvs = ar.read_array(array_size, lambda ar: ar.read_bulk_array(lambda ar: ar.read_float_vector(2)))
@@ -625,14 +614,14 @@ class UEModel:
 class VertexColor:
     name = ""
     data = []
-
-    def __init__(self, ar: FArchiveReader):
-        self.name = ar.read_fstring()
-        self.data = ar.read_bulk_array(lambda ar: ar.read_byte_vector(4))
-
+    
     def __init__(self, name, data):
         self.name = name
-        self._data = data
+        self.data = data
+
+    @staticmethod
+    def from_reader(ar: FArchiveReader):
+        return VertexColor(ar.read_fstring(), ar.read_bulk_array(lambda ar: ar.read_byte_vector(4)))
         
 class Material:
     material_name = ""
