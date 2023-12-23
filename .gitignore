@@ -1,2 +1,4 @@
 .git
 .idea
+Blender/zstd/*
+__pycache__
