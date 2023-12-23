@@ -14,21 +14,7 @@ from mathutils import Vector, Matrix, Quaternion, Euler
 from math import *
 from enum import IntEnum, auto
 import numpy as np
-
-try:
-    zstd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "zstd")
-    if os.path.exists(zstd_path):
-        import sys
-        sys.path.append(zstd_path)
-    import zstd # relative import?
-except ImportError:
-    import sys
-    import subprocess
-
-    # addon is installed in user's appdata folder so it should be writable
-    subprocess.Popen([sys.executable, "-m", "pip", "install", "zstd", "-t", zstd_path]).wait()
-    sys.path.append(zstd_path)
-    import zstd
+import zstandard as zstd
 
 # ---------- ADDON ---------- #
 
@@ -143,6 +129,9 @@ operators = [UEFORMAT_PT_Panel, UFImportUEModel, UFImportUEAnim, UFSettings]
 
 
 def register():
+    global zstd_decompresser
+    zstd_decompresser = zstd.ZstdDecompressor()
+
     for operator in operators:
         bpy.utils.register_class(operator)
 
@@ -156,6 +145,9 @@ def unregister():
 
     del Scene.uf_settings
     bpy.types.TOPBAR_MT_file_import.remove(draw_import_menu)
+
+    global zstd_decompresser
+    del zstd_decompresser
 
 
 if __name__ == "__main__":
@@ -203,11 +195,11 @@ class Log:
     timers = {}
 
     @staticmethod
-    def time_start(self, name):
+    def time_start(name):
         Log.timers[name] = time.time()
     
     @staticmethod
-    def time_end(self, name):
+    def time_end(name):
         if name in Log.timers:
             Log.info(f"{name} took {time.time() - Log.timers[name]} seconds")
             del Log.timers[name]
@@ -325,10 +317,10 @@ class UEFormatImport:
         self.options = options
 
     def import_file(self, path: str):
-        Log.time_start(self, f"Import {path}")
+        Log.time_start(f"Import {path}")
         with open(path, 'rb') as file:
             obj = self.import_data(file.read())
-        Log.time_end(self, f"Import {path}")
+        Log.time_end(f"Import {path}")
         return obj
 
     def import_data(self, data):
@@ -355,7 +347,7 @@ class UEFormatImport:
                 if compression_type == "GZIP":
                     read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
                 elif compression_type == "ZSTD":
-                    read_archive = FArchiveReader(zstd.ZSTD_uncompress(ar.read_to_end()))
+                    read_archive = FArchiveReader(zstd_decompresser.decompress(ar.read_to_end(), uncompressed_size))
                 else:
                     Log.info(f"Unknown Compression Type: {compression_type}")
                     return
