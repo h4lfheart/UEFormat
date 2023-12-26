@@ -132,6 +132,11 @@ def register():
     global zstd_decompresser
     zstd_decompresser = zstd.ZstdDecompressor()
 
+    # if used as script decomresser can be initialized like this
+    # from . import ue_format
+    # ue_format.zstd_decompresser = zstd.ZstdDecompressor()
+
+
     for operator in operators:
         bpy.utils.register_class(operator)
 
@@ -184,39 +189,46 @@ class Log:
     ERROR = u"\u001b[33m"
     RESET = u"\u001b[0m"
 
+    NoLog = False
+
     @staticmethod
     def info(message):
+        if Log.NoLog: return
         print(f"{Log.INFO}[UEFORMAT] {Log.RESET}{message}")
 
     @staticmethod
     def error(message):
+        if Log.NoLog: return
         print(f"{Log.ERROR}[UEFORMAT] {Log.RESET}{message}")
 
     timers = {}
 
     @staticmethod
     def time_start(name):
+        if Log.NoLog: return
         Log.timers[name] = time.time()
     
     @staticmethod
     def time_end(name):
+        if Log.NoLog: return
         if name in Log.timers:
             Log.info(f"{name} took {time.time() - Log.timers[name]} seconds")
             del Log.timers[name]
         else:
             Log.error(f"Timer {name} does not exist")
 
+# TODO: optimize and clean up code
 class FArchiveReader:
     data = None
     size = 0
 
     def __init__(self, data):
         self.data = io.BytesIO(data)
-        self.size = len(self.data.read())
+        self.size = len(data)
         self.data.seek(0)
 
     def __enter__(self):
-        self.size = len(self.data.read())
+        # self.size = len(self.data.read())
         self.data.seek(0)
         return self
 
@@ -266,7 +278,7 @@ class FArchiveReader:
         return struct.unpack(str(size) + "B", self.data.read(size))
 
     def skip(self, size: int):
-        self.data.read(size)
+        self.data.seek(size, 1)
 
     def read_bulk_array(self, predicate):
         count = self.read_int()
@@ -353,7 +365,7 @@ class UEFormatImport:
                     return
 
             if identifier == MODEL_IDENTIFIER:
-                if 1:
+                if 0:
                     import cProfile, pstats, io
                     from pstats import SortKey
                     pr = cProfile.Profile()
@@ -379,6 +391,8 @@ class UEFormatImport:
             header_name = ar.read_fstring()
             array_size = ar.read_int()
             byte_size = ar.read_int()
+
+            pos = ar.data.tell()
             if header_name == "VERTICES":
                 flattened = ar.read_float_vector(array_size * 3)
                 data.vertices = (np.array(flattened) * self.options.scale_factor).reshape(array_size, 3)
@@ -386,10 +400,15 @@ class UEFormatImport:
             elif header_name == "INDICES":
                 data.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
             elif header_name == "NORMALS":
-                flattened = np.array(ar.read_float_vector(array_size * 4)) # W XYZ # TODO: change to XYZ W
-                data.normals = flattened.reshape(-1,4)[:,1:]
+                if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
+                    flattened = np.array(ar.read_float_vector(array_size * 4)) # W XYZ # TODO: change to XYZ W
+                    data.normals = flattened.reshape(-1,4)[:,1:]
+                else:
+                    flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
+                    data.normals = flattened
             elif header_name == "TANGENTS":
-                flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
+                ar.skip(array_size * 3 * 3)
+                # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
             elif header_name == "VERTEXCOLORS":
                 if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
                     data.colors = []
@@ -398,7 +417,6 @@ class UEFormatImport:
                 else:
                     count = ar.read_int()
                     data.colors = [VertexColor("COL0", np.array(ar.read_byte_vector(count * 4)).reshape(count, 4))]
-
             elif header_name == "TEXCOORDS":
                 data.uvs = []
                 for i in range(array_size):
@@ -416,6 +434,7 @@ class UEFormatImport:
                 data.sockets = ar.read_array(array_size, lambda ar: Socket(ar, self.options.scale_factor))
             else:
                 ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
 
         # geometry
         has_geometry = len(data.vertices) > 0 and len(data.indices) > 0
@@ -434,7 +453,7 @@ class UEFormatImport:
                 mesh_data.normals_split_custom_set_from_vertices(data.normals)
                 if bpy.app.version < (4, 1, 0):
                     mesh_data.use_auto_smooth = True
-    
+
             # weights
             if len(data.weights) > 0 and len(data.bones) > 0:
                 for weight in data.weights:
