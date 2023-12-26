@@ -1,8 +1,9 @@
-import gzip
 import io
 import os
+import gzip
 import struct
-import zstandard
+import numpy as np
+import zstandard as zstd
 from enum import IntEnum, auto
 
 import bpy
@@ -124,6 +125,14 @@ operators = [UEFORMAT_PT_Panel, UFImportUEModel, UFImportUEAnim, UFSettings]
 
 
 def register():
+    global zstd_decompresser
+    zstd_decompresser = zstd.ZstdDecompressor()
+
+    # if used as script decomresser can be initialized like this
+    # from . import ue_format
+    # ue_format.zstd_decompresser = zstd.ZstdDecompressor()
+
+
     for operator in operators:
         bpy.utils.register_class(operator)
 
@@ -137,6 +146,9 @@ def unregister():
 
     del Scene.uf_settings
     bpy.types.TOPBAR_MT_file_import.remove(draw_import_menu)
+
+    global zstd_decompresser
+    del zstd_decompresser
 
 
 if __name__ == "__main__":
@@ -173,26 +185,46 @@ class Log:
     ERROR = u"\u001b[33m"
     RESET = u"\u001b[0m"
 
+    NoLog = False
+
     @staticmethod
     def info(message):
+        if Log.NoLog: return
         print(f"{Log.INFO}[UEFORMAT] {Log.RESET}{message}")
 
     @staticmethod
     def error(message):
+        if Log.NoLog: return
         print(f"{Log.ERROR}[UEFORMAT] {Log.RESET}{message}")
 
+    timers = {}
 
+    @staticmethod
+    def time_start(name):
+        if Log.NoLog: return
+        Log.timers[name] = time.time()
+    
+    @staticmethod
+    def time_end(name):
+        if Log.NoLog: return
+        if name in Log.timers:
+            Log.info(f"{name} took {time.time() - Log.timers[name]} seconds")
+            del Log.timers[name]
+        else:
+            Log.error(f"Timer {name} does not exist")
+
+# TODO: optimize and clean up code
 class FArchiveReader:
     data = None
     size = 0
 
     def __init__(self, data):
         self.data = io.BytesIO(data)
-        self.size = len(self.data.read())
+        self.size = len(data)
         self.data.seek(0)
 
     def __enter__(self):
-        self.size = len(self.data.read())
+        # self.size = len(self.data.read())
         self.data.seek(0)
         return self
 
@@ -242,7 +274,7 @@ class FArchiveReader:
         return struct.unpack(str(size) + "B", self.data.read(size))
 
     def skip(self, size: int):
-        self.data.read(size)
+        self.data.seek(size, 1)
 
     def read_bulk_array(self, predicate):
         count = self.read_int()
@@ -293,8 +325,11 @@ class UEFormatImport:
         self.options = options
 
     def import_file(self, path: str):
+        Log.time_start(f"Import {path}")
         with open(path, 'rb') as file:
-            return self.import_data(file.read())
+            obj = self.import_data(file.read())
+        Log.time_end(f"Import {path}")
+        return obj
 
     def import_data(self, data):
         with FArchiveReader(data) as ar:
@@ -320,13 +355,28 @@ class UEFormatImport:
                 if compression_type == "GZIP":
                     read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
                 elif compression_type == "ZSTD":
-                    read_archive = FArchiveReader(zstandard.ZstdDecompressor().decompress(ar.read_to_end(), max_output_size=uncompressed_size))
+                    read_archive = FArchiveReader(zstd_decompresser.decompress(ar.read_to_end(), uncompressed_size))
                 else:
                     Log.info(f"Unknown Compression Type: {compression_type}")
                     return
 
             if identifier == MODEL_IDENTIFIER:
-                return self.import_uemodel_data(read_archive, object_name)
+                if 0:
+                    import cProfile, pstats, io
+                    from pstats import SortKey
+                    pr = cProfile.Profile()
+                    pr.enable()
+                    obj = self.import_uemodel_data(read_archive, object_name)
+                    pr.disable()
+                    s = io.StringIO()
+                    sortby = SortKey.TIME
+                    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+                    ps.print_stats()
+                    print(s.getvalue())
+                    return obj
+                else:
+                    return self.import_uemodel_data(read_archive, object_name)
+            
             elif identifier == ANIM_IDENTIFIER:
                 return self.import_ueanim_data(read_archive, object_name)
 
@@ -337,29 +387,37 @@ class UEFormatImport:
             header_name = ar.read_fstring()
             array_size = ar.read_int()
             byte_size = ar.read_int()
+
+            pos = ar.data.tell()
             if header_name == "VERTICES":
-                data.vertices = ar.read_array(array_size, lambda ar: [vert * self.options.scale_factor for vert in
-                                                                      ar.read_float_vector(3)])
+                flattened = ar.read_float_vector(array_size * 3)
+                data.vertices = (np.array(flattened) * self.options.scale_factor).reshape(array_size, 3)
+
             elif header_name == "INDICES":
-                data.indices = ar.read_array(int(array_size / 3), lambda ar: ar.read_int_vector(3))
+                data.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
             elif header_name == "NORMALS":
-                def read_normals(ar):
-                    if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
-                        binormal_sign = ar.read_float()
-
-                    return ar.read_float_vector(3)
-
-                data.normals = ar.read_array(array_size, lambda ar: read_normals(ar))
+                if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
+                    flattened = np.array(ar.read_float_vector(array_size * 4)) # W XYZ # TODO: change to XYZ W
+                    data.normals = flattened.reshape(-1,4)[:,1:]
+                else:
+                    flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
+                    data.normals = flattened
             elif header_name == "TANGENTS":
-                data.tangents = ar.read_array(array_size, lambda ar: ar.read_float_vector(3))
+                ar.skip(array_size * 3 * 3)
+                # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
             elif header_name == "VERTEXCOLORS":
                 if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
-                    data.colors = ar.read_array(array_size, lambda ar: VertexColor.from_reader(ar))
+                    data.colors = []
+                    for i in range(array_size):
+                        data.colors.append(VertexColor.read(ar))
                 else:
-                    data.colors = [VertexColor("COL0", ar.read_array(array_size, lambda ar: ar.read_byte_vector(4)))]
-
+                    count = ar.read_int()
+                    data.colors = [VertexColor("COL0", np.array(ar.read_byte_vector(count * 4)).reshape(count, 4))]
             elif header_name == "TEXCOORDS":
-                data.uvs = ar.read_array(array_size, lambda ar: ar.read_bulk_array(lambda ar: ar.read_float_vector(2)))
+                data.uvs = []
+                for i in range(array_size):
+                    count = ar.read_int()
+                    data.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
             elif header_name == "MATERIALS":
                 data.materials = ar.read_array(array_size, lambda ar: Material(ar))
             elif header_name == "WEIGHTS":
@@ -372,6 +430,7 @@ class UEFormatImport:
                 data.sockets = ar.read_array(array_size, lambda ar: Socket(ar, self.options.scale_factor))
             else:
                 ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
 
         # geometry
         has_geometry = len(data.vertices) > 0 and len(data.indices) > 0
@@ -390,7 +449,7 @@ class UEFormatImport:
                 mesh_data.normals_split_custom_set_from_vertices(data.normals)
                 if bpy.app.version < (4, 1, 0):
                     mesh_data.use_auto_smooth = True
-    
+
             # weights
             if len(data.weights) > 0 and len(data.bones) > 0:
                 for weight in data.weights:
@@ -413,24 +472,41 @@ class UEFormatImport:
     
                     for delta in morph.deltas:
                         key.data[delta.vertex_index].co += Vector(delta.position)
-    
-            # vertex colors
-            if len(data.colors) > 0:
-                for color_info in data.colors:
-                    vertex_color = mesh_data.color_attributes.new(domain='CORNER', type='BYTE_COLOR', name=color_info.name)
-                    for polygon in mesh_data.polygons:
-                        for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
-                            color = color_info.data[vertex_index]
-                            vertex_color.data[loop_index].color = color[0] / 255, color[1] / 255, color[2] / 255, color[3] / 255
-    
-            # texture coordinates
-            if len(data.uvs) > 0:
-                for index, uvs in enumerate(data.uvs):
-                    uv_layer = mesh_data.uv_layers.new(name="UV" + str(index))
-                    for polygon in mesh_data.polygons:
-                        for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
-                            uv_layer.data[loop_index].uv = uvs[vertex_index]
-    
+            
+            squish = lambda array: array.reshape(array.size) # Squish nD array into 1D array (required by foreach_set).
+            do_remapping = lambda array, indices: array[indices]
+
+            vertices = [vertex for polygon in mesh_data.polygons for vertex in polygon.vertices]
+            # indices = np.array([index for polygon in mesh_data.polygons for index in polygon.loop_indices], dtype=np.int32)
+            # assert np.all(indices[:-1] <= indices[1:]) # check if indices are sorted hmm idk
+            for color_info in data.colors:
+                remapped = do_remapping(color_info.data, vertices)
+                vertex_color = mesh_data.color_attributes.new(domain='CORNER', type='BYTE_COLOR', name=color_info.name)
+                vertex_color.data.foreach_set("color", squish(remapped))
+
+            for index, uvs in enumerate(data.uvs):
+                remapped = do_remapping(uvs, vertices)
+                uv_layer = mesh_data.uv_layers.new(name="UV" + str(index))
+                uv_layer.data.foreach_set("uv", squish(remapped))
+
+            if 0:
+                # vertex colors
+                if len(data.colors) > 0:
+                    for color_info in data.colors:
+                        vertex_color = mesh_data.color_attributes.new(domain='CORNER', type='BYTE_COLOR', name=color_info.name)
+                        for polygon in mesh_data.polygons:
+                            for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
+                                color = color_info.data[vertex_index]
+                                vertex_color.data[loop_index].color = color[0], color[1], color[2], color[3]
+        
+                # texture coordinates
+                if len(data.uvs) > 0:
+                    for index, uvs in enumerate(data.uvs):
+                        uv_layer = mesh_data.uv_layers.new(name="UV" + str(index))
+                        for polygon in mesh_data.polygons:
+                            for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
+                                uv_layer.data[loop_index].uv = uvs[vertex_index]
+
             # materials
             if len(data.materials) > 0:
                 for i, material in enumerate(data.materials):
@@ -614,15 +690,19 @@ class UEModel:
 class VertexColor:
     name = ""
     data = []
-    
+
     def __init__(self, name, data):
         self.name = name
         self.data = data
 
-    @staticmethod
-    def from_reader(ar: FArchiveReader):
-        return VertexColor(ar.read_fstring(), ar.read_bulk_array(lambda ar: ar.read_byte_vector(4)))
-        
+    @classmethod
+    def read(cls, ar: FArchiveReader):
+        name = ar.read_fstring()
+        count = ar.read_int()
+        data = (np.array(ar.read_byte_vector(count * 4)).reshape(count, 4) / 255).astype(np.float32)
+
+        return cls(name, data)
+
 class Material:
     material_name = ""
     first_index = -1
