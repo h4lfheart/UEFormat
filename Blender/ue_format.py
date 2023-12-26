@@ -1,20 +1,16 @@
-import bpy
-import bpy_extras
-from bpy.props import StringProperty, BoolProperty, PointerProperty, EnumProperty, FloatProperty, FloatVectorProperty, \
-    CollectionProperty
-from bpy.types import Scene
-
-import struct
-import os
 import io
-import time
+import os
 import gzip
-import json
-from mathutils import Vector, Matrix, Quaternion, Euler
-from math import *
-from enum import IntEnum, auto
+import struct
 import numpy as np
 import zstandard as zstd
+from enum import IntEnum, auto
+
+import bpy
+import bpy_extras
+from bpy.props import StringProperty, BoolProperty, PointerProperty, FloatProperty, CollectionProperty
+from bpy.types import Scene
+from mathutils import Vector, Matrix, Quaternion
 
 # ---------- ADDON ---------- #
 
