@@ -1,5 +1,6 @@
 import io
 import os
+import time
 import gzip
 import struct
 import numpy as np
@@ -101,7 +102,7 @@ class UFImportUEAnim(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         for file in self.files:
-            UEFormatImport().import_file(os.path.join(self.directory, file.name))
+            UEFormatImport(UEAnimOptions(scale_factor=bpy.context.scene.uf_settings.scale)).import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
 
     def draw(self, context):
@@ -159,6 +160,22 @@ if __name__ == "__main__":
 
 def bytes_to_str(in_bytes):
     return in_bytes.rstrip(b'\x00').decode()
+
+def make_axis_vector(vec_in):
+    vec_out = Vector()
+    x, y, z = vec_in
+    if abs(x) > abs(y):
+        if abs(x) > abs(z):
+            vec_out.x = 1 if x >= 0 else -1
+        else:
+            vec_out.z = 1 if z >= 0 else -1
+    else:
+        if abs(y) > abs(z):
+            vec_out.y = 1 if y >= 0 else -1
+        else:
+            vec_out.z = 1 if z >= 0 else -1
+
+    return vec_out
 
 
 def get_case_insensitive(source, string):
@@ -361,21 +378,7 @@ class UEFormatImport:
                     return
 
             if identifier == MODEL_IDENTIFIER:
-                if 0:
-                    import cProfile, pstats, io
-                    from pstats import SortKey
-                    pr = cProfile.Profile()
-                    pr.enable()
-                    obj = self.import_uemodel_data(read_archive, object_name)
-                    pr.disable()
-                    s = io.StringIO()
-                    sortby = SortKey.TIME
-                    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-                    ps.print_stats()
-                    print(s.getvalue())
-                    return obj
-                else:
-                    return self.import_uemodel_data(read_archive, object_name)
+                return self.import_uemodel_data(read_archive, object_name)
             
             elif identifier == ANIM_IDENTIFIER:
                 return self.import_ueanim_data(read_archive, object_name)
@@ -411,8 +414,7 @@ class UEFormatImport:
                     for i in range(array_size):
                         data.colors.append(VertexColor.read(ar))
                 else:
-                    count = ar.read_int()
-                    data.colors = [VertexColor("COL0", np.array(ar.read_byte_vector(count * 4)).reshape(count, 4))]
+                    data.colors = [VertexColor("COL0", (np.array(ar.read_byte_vector(array_size * 4)).reshape(array_size, 4) / 255).astype(np.float32))]
             elif header_name == "TEXCOORDS":
                 data.uvs = []
                 for i in range(array_size):
@@ -489,24 +491,6 @@ class UEFormatImport:
                 uv_layer = mesh_data.uv_layers.new(name="UV" + str(index))
                 uv_layer.data.foreach_set("uv", squish(remapped))
 
-            if 0:
-                # vertex colors
-                if len(data.colors) > 0:
-                    for color_info in data.colors:
-                        vertex_color = mesh_data.color_attributes.new(domain='CORNER', type='BYTE_COLOR', name=color_info.name)
-                        for polygon in mesh_data.polygons:
-                            for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
-                                color = color_info.data[vertex_index]
-                                vertex_color.data[loop_index].color = color[0], color[1], color[2], color[3]
-        
-                # texture coordinates
-                if len(data.uvs) > 0:
-                    for index, uvs in enumerate(data.uvs):
-                        uv_layer = mesh_data.uv_layers.new(name="UV" + str(index))
-                        for polygon in mesh_data.polygons:
-                            for vertex_index, loop_index in zip(polygon.vertices, polygon.loop_indices):
-                                uv_layer.data[loop_index].uv = uvs[vertex_index]
-
             # materials
             if len(data.materials) > 0:
                 for i, material in enumerate(data.materials):
@@ -537,14 +521,16 @@ class UEFormatImport:
             if has_geometry:
                 mesh_object.parent = armature_object
 
+        name_to_transform_map = {}
         if len(data.bones) > 0:
             # create bones
             bpy.ops.object.mode_set(mode='EDIT')
             edit_bones = armature_data.edit_bones
             for bone in data.bones:
                 bone_pos = Vector(bone.position)
-                bone_rot = Quaternion(
-                    (bone.rotation[3], bone.rotation[0], bone.rotation[1], bone.rotation[2]))  # xyzw -> wxyz
+                bone_rot = Quaternion((bone.rotation[3], bone.rotation[0], bone.rotation[1], bone.rotation[2]))  # xyzw -> wxyz
+
+                name_to_transform_map[bone.name] = bone_pos, bone_rot
 
                 edit_bone = edit_bones.new(bone.name)
                 edit_bone.length = self.options.bone_length * self.options.scale_factor
@@ -561,19 +547,19 @@ class UEFormatImport:
             bpy.ops.object.mode_set(mode='OBJECT')
 
             if has_geometry:
-                
+
                 # armature modifier
                 armature_modifier = mesh_object.modifiers.new(armature_object.name, type='ARMATURE')
                 armature_modifier.show_expanded = False
                 armature_modifier.use_vertex_groups = True
                 armature_modifier.object = armature_object
-    
+
                 # bone colors
                 for bone in armature_object.pose.bones:
                     if mesh_object.vertex_groups.get(bone.name) is None:
                         bone.color.palette = 'THEME14'
                         continue
-    
+
                     if len(bone.children) == 0:
                         bone.color.palette = 'THEME03'
 
@@ -583,6 +569,7 @@ class UEFormatImport:
             bpy.ops.object.mode_set(mode='EDIT')
             for socket in data.sockets:
                 socket_bone = edit_bones.new(socket.name)
+                socket_bone["is_socket"] = True
                 parent_bone = get_case_insensitive(edit_bones, socket.parent_name)
                 if parent_bone is None:
                     continue
@@ -597,6 +584,47 @@ class UEFormatImport:
                 socket_bone = armature_object.pose.bones.get(socket.name)
                 if socket_bone is not None:
                     socket_bone.color.palette = 'THEME05'
+
+        if len(data.bones) > 0 and self.options.reorient_bones:
+            bpy.ops.object.mode_set(mode='EDIT')
+
+            name_to_target_rot_map = {}
+            for bone in edit_bones:
+                if bone.get("is_socket"):
+                    continue
+                children = bone.children
+                total_children = len(children)
+
+                target_length = bone.length
+                if total_children == 0:
+                    pos, rot = name_to_transform_map[bone.name]
+                    new_rot = name_to_target_rot_map[bone.parent.name].copy()
+                    new_rot.rotate(rot)
+
+                    target_rotation = make_axis_vector(new_rot)
+                else:
+                    avg_child_pos = Vector()
+                    avg_child_length = 0
+                    for child in bone.children:
+                        if child.get("is_socket"):
+                            continue
+                        pos, rot = name_to_transform_map[child.name]
+                        avg_child_pos += pos
+                        avg_child_length += pos.length
+
+                    avg_child_pos /= total_children
+                    avg_child_length /= total_children
+
+                    target_rotation = make_axis_vector(avg_child_pos)
+                    name_to_target_rot_map[bone.name] = target_rotation
+
+                    target_length = avg_child_length
+
+                bone.matrix @= Vector((0, 1, 0)).rotation_difference(target_rotation).to_matrix().to_4x4()
+                bone.length = target_length
+
+
+            bpy.ops.object.mode_set(mode='OBJECT')
 
         return return_object
 
@@ -838,17 +866,3 @@ class FloatKey(AnimKey):
     def __init__(self, ar: FArchiveReader):
         super().__init__(ar)
         self.value = ar.read_float()
-        
-class Actor:
-    mesh_hash = 0
-    name = ""
-    position = []
-    rotation = []
-    scale = []
-
-    def __init__(self, ar: FArchiveReader, scale):
-        self.mesh_hash = ar.read_int()
-        self.name = ar.read_fstring()
-        self.position = [pos * scale for pos in ar.read_float_vector(3)]
-        self.rotation = ar.read_float_vector(3)
-        self.scale = ar.read_float_vector(3)
