@@ -101,14 +101,14 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 
 		VertexPositions[VertexID] = FVector3f(Data.Vertices[i].X, -Data.Vertices[i].Y, Data.Vertices[i].Z);
 		if (Data.Normals.Num() > 0) {
-			VertexInstanceNormals[VertexInstanceID] = FVector3f(Data.Normals[i].X, -Data.Normals[i].Y, Data.Normals[i].Z);
-			VertexInstanceBinormalSigns[VertexInstanceID] = Data.Normals[i].W;
+			VertexInstanceBinormalSigns[VertexInstanceID] = Data.Normals[i].X;
+			VertexInstanceNormals[VertexInstanceID] = FVector3f(Data.Normals[i].Y, -Data.Normals[i].Z, Data.Normals[i].W);
 		}
 		if (Data.Tangents.Num() > 0) {
 			VertexInstanceTangents[VertexInstanceID] = FVector3f(Data.Tangents[i].X, -Data.Tangents[i].Y, Data.Tangents[i].Z);
 		}
 		if (Data.VertexColors.Num() > 0) {
-			VertexInstanceColors[VertexInstanceID] = FVector4f(Data.VertexColors[i]);
+			VertexInstanceColors[VertexInstanceID] = FVector4f(Data.VertexColors[0].Data[i]);
 		}
 		for (auto u = 0; u < Data.TextureCoordinates.Num(); u++)
 		{

@@ -83,7 +83,12 @@ std::string ReadBufferFString(const char* DataArray, int& Offset) {
 	Offset += Size;
 	return String;
 }
-
+struct FVertexColorChunk
+{
+	std::string Name;
+	int32 Count;
+	TArray<FColor> Data;
+};
 struct FWeightChunk
 {
 	short WeightBoneIndex;
@@ -147,7 +152,7 @@ public:
 	TArray<int32> Indices;
 	TArray<FVector4f> Normals;
 	TArray<FVector3f> Tangents;
-	TArray<FColor> VertexColors;
+	TArray<FVertexColorChunk> VertexColors;
 	TArray<TArray<FVector2f>> TextureCoordinates;
 	TArray<FMaterialChunk> Materials;
 	TArray<FBoneChunk> Bones;

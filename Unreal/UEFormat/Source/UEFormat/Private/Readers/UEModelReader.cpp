@@ -59,7 +59,15 @@ void UEModelReader::ReadBuffer(const char* Buffer, int BufferSize) {
 		else if (ChunkName == "INDICES") { ReadBufferArray(Buffer, offset, ArraySize, Indices); }
 		else if (ChunkName == "NORMALS") { ReadBufferArray(Buffer, offset, ArraySize, Normals); }
 		else if (ChunkName == "TANGENTS") { ReadBufferArray(Buffer, offset, ArraySize, Tangents); }
-		else if (ChunkName == "VERTEXCOLORS") {ReadBufferArray(Buffer, offset, ArraySize, VertexColors); }
+		else if (ChunkName == "VERTEXCOLORS") {
+			VertexColors.SetNum(ArraySize);
+			for (auto i = 0; i < ArraySize; i++) {
+				VertexColors[i].Name = ReadBufferFString(Buffer, offset);
+				VertexColors[i].Count = ReadBufferData<int32>(Buffer, offset);
+				VertexColors[i].Data.SetNum(VertexColors[i].Count);
+				ReadBufferArray(Buffer, offset, VertexColors[i].Count, VertexColors[i].Data);
+			}
+		}
 		else if (ChunkName == "MATERIALS") {
 			Materials.SetNum(ArraySize);
 			for (auto i = 0; i < ArraySize; i++) {
