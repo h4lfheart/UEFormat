@@ -12,8 +12,9 @@
 #include "Widgets/SkelMesh/USkelMeshWidget.h"
 #include "Widgets/SkelMesh/USkelMeshWidget.h"
 #include <Interfaces/IMainFrameModule.h>
+#include "UObject/SavePackage.h"
 
-/* UTextAssetFactory structors
+/* UEModelFactory constructors
  *****************************************************************************/
 UEModelFactory::UEModelFactory( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
@@ -24,6 +25,22 @@ UEModelFactory::UEModelFactory( const FObjectInitializer& ObjectInitializer )
 	bEditorImport = true;
 	SettingsImporter = CreateDefaultSubobject<USkelMeshImportOptions>(TEXT("Skeletal Mesh Options"));
 }
+
+/* UEModelFactory helper functions
+ *****************************************************************************/
+UObject* UEModelFactory::Import(const FString& Path, const FString& PackagePath, const FName Name, const EObjectFlags Flags, TMap<FString, FString> MaterialNameToPathMap)
+{
+	auto MeshFactory = NewObject<UEModelFactory>();
+	
+	auto MeshPackage = CreatePackage(*PackagePath);
+	auto bCancelled = false;
+	auto CreatedMesh = MeshFactory->FactoryCreateFile(UStaticMesh::StaticClass(), MeshPackage, Name, RF_Public | RF_Standalone, Path, NULL, GWarn, bCancelled);
+
+	if (CreatedMesh == nullptr) return nullptr;	
+	
+	return CreatedMesh;
+}
+
 
 /* UFactory overrides
  *****************************************************************************/
@@ -36,38 +53,31 @@ UObject* UEModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 
 	if (Data.Bones.Num())
 	{
-		//Ui
-		if (SettingsImporter->bInitialized == false)
-		{
-			TSharedPtr<USkelMeshWidget> ImportOptionsWindow;
-			TSharedPtr<SWindow> ParentWindow;
-			if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
-			{
-				IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
-				ParentWindow = MainFrame.GetParentWindow();
-			}
-
-			TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("Skeletal Mesh Import Options"))).SizingRule(ESizingRule::Autosized);
-			Window->SetContent
-			(
-				SAssignNew(ImportOptionsWindow, USkelMeshWidget).WidgetWindow(Window)
-			);
-			SettingsImporter = ImportOptionsWindow.Get()->Stun;
-			FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
-			bImport = ImportOptionsWindow.Get()->ShouldImport();
-			bImportAll = ImportOptionsWindow.Get()->ShouldImportAll();
-			SettingsImporter->bInitialized = true;
-		}
 		USkeleton* Skeleton = SettingsImporter->Skeleton;
 		USkeletalMesh* SkeletalMesh = CreateSkeletalMeshFromStatic(Data, Mesh, Skeleton, Flags);
 		Mesh->RemoveFromRoot();
 		Mesh->MarkAsGarbage();
+
+		FString SkeletalMeshPackageFileName = FPackageName::LongPackageNameToFilename(Parent->GetPathName(), FPackageName::GetAssetPackageExtension());
+		UPackage::SavePackage(Parent->GetPackage(), SkeletalMesh, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *SkeletalMeshPackageFileName);
+
+		FString SkeletonPackagePath = Parent->GetPathName() + "_Skeleton";
+		const auto SkeletonPackage = CreatePackage(*SkeletonPackagePath);
+
+		FString SkeletonPackageFileName = FPackageName::LongPackageNameToFilename(SkeletonPackage->GetPathName(), FPackageName::GetAssetPackageExtension());
+		UPackage::SavePackage(SkeletonPackage, Skeleton, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *SkeletonPackageFileName);
+
 		return SkeletalMesh;
 	}
+	
+	FString MeshPackageFileName = FPackageName::LongPackageNameToFilename(Parent->GetPathName(), FPackageName::GetAssetPackageExtension());
+	UPackage::SavePackage(Parent->GetPackage(), Mesh, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *MeshPackageFileName);
+
 	return Mesh;
 }
 
-UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Parent, EObjectFlags Flags) {
+UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Parent, EObjectFlags Flags)
+{
 	FName ObjectName = Data.Header.ObjectName.c_str();
 	if (Data.Bones.Num()){ ObjectName = "TEMP"; }
 
@@ -238,5 +248,6 @@ USkeleton* UEModelFactory::CreateSkeleton(UPackage* ParentPackage, EObjectFlags 
 		const FMeshBoneInfo BoneInfo(FName(*Bone.Name), Bone.Name, Bone.ParentIndex);
 		RefSkeletonModifier.Add(BoneInfo, FTransform(Bone.BonePos.Transform));
 	}
+
 	return Skeleton;
 }
