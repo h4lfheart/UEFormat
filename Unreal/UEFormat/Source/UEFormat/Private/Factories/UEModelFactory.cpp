@@ -30,6 +30,13 @@ UEModelFactory::UEModelFactory( const FObjectInitializer& ObjectInitializer )
  *****************************************************************************/
 UObject* UEModelFactory::Import(const FString& Path, const FString& PackagePath, const FName Name, const EObjectFlags Flags, TMap<FString, FString> MaterialNameToPathMap)
 {
+	if(StaticLoadObject(UObject::StaticClass(), nullptr, *PackagePath) != nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Skipping import. An asset already exists at: %s"),*PackagePath);
+		return nullptr;
+	}
+
+
 	auto MeshFactory = NewObject<UEModelFactory>();
 	
 	auto MeshPackage = CreatePackage(*PackagePath);
@@ -51,6 +58,9 @@ UObject* UEModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 
 	UStaticMesh* Mesh = CreateStaticMesh(Data, Parent, Flags);
 
+	FSavePackageArgs SaveArgs;
+	SaveArgs.TopLevelFlags = RF_Standalone | RF_Public;
+
 	if (Data.Bones.Num())
 	{
 		USkeleton* Skeleton = SettingsImporter->Skeleton;
@@ -59,19 +69,19 @@ UObject* UEModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 		Mesh->MarkAsGarbage();
 
 		FString SkeletalMeshPackageFileName = FPackageName::LongPackageNameToFilename(Parent->GetPathName(), FPackageName::GetAssetPackageExtension());
-		UPackage::SavePackage(Parent->GetPackage(), SkeletalMesh, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *SkeletalMeshPackageFileName);
+		UPackage::SavePackage(Parent->GetPackage(), SkeletalMesh, *SkeletalMeshPackageFileName, SaveArgs);
 
 		FString SkeletonPackagePath = Parent->GetPathName() + "_Skeleton";
 		const auto SkeletonPackage = CreatePackage(*SkeletonPackagePath);
-
+		
 		FString SkeletonPackageFileName = FPackageName::LongPackageNameToFilename(SkeletonPackage->GetPathName(), FPackageName::GetAssetPackageExtension());
-		UPackage::SavePackage(SkeletonPackage, Skeleton, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *SkeletonPackageFileName);
+		UPackage::SavePackage(SkeletonPackage, Skeleton, *SkeletonPackageFileName, SaveArgs);
 
 		return SkeletalMesh;
 	}
-	
+
 	FString MeshPackageFileName = FPackageName::LongPackageNameToFilename(Parent->GetPathName(), FPackageName::GetAssetPackageExtension());
-	UPackage::SavePackage(Parent->GetPackage(), Mesh, EObjectFlags::RF_Public | EObjectFlags::RF_Standalone, *MeshPackageFileName);
+	UPackage::SavePackage(Parent->GetPackage(), Mesh, *MeshPackageFileName, SaveArgs);
 
 	return Mesh;
 }
@@ -180,7 +190,7 @@ USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data,
 
 	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(AssetTools.CreateAsset(Data.Header.ObjectName.c_str(), FPackageName::GetLongPackagePath(Mesh->GetPackage()->GetName()), USkeletalMesh::StaticClass(), SkeletalMeshFactory));
-
+	SkeletalMesh->PreEditChange(nullptr);
 	SkeletalMesh->LoadLODImportedData(0, SkelMeshImportData);
 	TArray<SkeletalMeshImportData::FRawBoneInfluence> Influences;
 	for (auto i = 0; i < Data.Weights.Num(); i++)
@@ -203,7 +213,8 @@ USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data,
 	SkeletalMesh->SetSkeleton(Skeleton);
 	SkeletalMesh->PostEditChange();
 	FAssetRegistryModule::AssetCreated(SkeletalMesh);
-
+	
+	Skeleton->PreEditChange(nullptr);
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
 	Skeleton->SetPreviewMesh(SkeletalMesh);
 	Skeleton->PostEditChange();
