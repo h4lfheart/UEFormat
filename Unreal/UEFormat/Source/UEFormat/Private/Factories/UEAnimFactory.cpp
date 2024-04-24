@@ -1,14 +1,16 @@
 ﻿
 #include "Factories/UEAnimFactory.h"
 #include "ComponentReregisterContext.h"
-#include "SkeletalMeshAttributes.h"
+#include "Animation/AnimSequence.h"
 #include "Widgets/Anim/UAnimImportOptions.h"
 #include "Widgets/Anim/UAnimWidget.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Readers/UEAnimReader.h"
+#include "Widgets/SWindow.h"
 
 UEAnimFactory::UEAnimFactory(const FObjectInitializer & ObjectInitializer): Super(ObjectInitializer)
 {

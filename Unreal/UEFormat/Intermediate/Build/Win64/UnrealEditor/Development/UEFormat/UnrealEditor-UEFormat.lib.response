@@ -1,0 +1,12 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UnrealEditor-UEFormat.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"C:\Users\Marcel\Documents\Unreal Projects\UianaTesting51\Intermediate\Build\Win64\UianaTesting51Editor\Development\UnrealEd\SharedPCH.UnrealEd.ShadowErrors.h.obj"
+"C:\Users\Marcel\Documents\Unreal Projects\UianaTesting51\Plugins\UEFormat\Intermediate\Build\Win64\UnrealEditor\Development\UEFormat\Module.UEFormat.cpp.obj"
+"C:\Users\Marcel\Documents\Unreal Projects\UianaTesting51\Plugins\UEFormat\Intermediate\Build\Win64\UnrealEditor\Development\UEFormat\Default.rc2.res"
+/OUT:"C:\Users\Marcel\Documents\Unreal Projects\UianaTesting51\Plugins\UEFormat\Intermediate\Build\Win64\UnrealEditor\Development\UEFormat\UnrealEditor-UEFormat.lib"

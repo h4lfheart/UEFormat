@@ -2,7 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
-#include "EAnimImportOptions.h"
+#include "UEAnimImportOptions.h"
 #include "Widgets/SCompoundWidget.h"
 
 enum class EPSAImportOptionDlgResponse : uint8

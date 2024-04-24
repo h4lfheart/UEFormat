@@ -1,0 +1,15 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\private\\widgets\\skelmesh\\uskelmeshimportoptions.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\intermediate\\build\\win64\\x64\\uutestingeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\ueformat\\definitions.ueformat.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\public\\widgets\\skelmesh\\uskelmeshimportoptions.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\intermediate\\build\\win64\\unrealeditor\\inc\\ueformat\\uht\\uskelmeshimportoptions.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

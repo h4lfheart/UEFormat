@@ -1,9 +1,13 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Widgets/UEAnimWidget.h"
+
+#include "PropertyEditorModule.h"
 #include "SPrimaryButton.h"
 #include "SlateOptMacros.h"
-#include "Widgets/EAnimImportOptions.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/UEAnimImportOptions.h"
+#include "Widgets/Layout/SBox.h"
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

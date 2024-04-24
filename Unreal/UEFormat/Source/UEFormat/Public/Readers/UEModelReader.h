@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <fstream>
+#include "Math/Quat.h"
 
 template<typename T>
 void ReadArray(std::ifstream& Ar, int ArraySize, TArray<T>& Data) {
@@ -16,30 +17,11 @@ T ReadData(std::ifstream& Ar) {
 	return Data;
 }
 
-FQuat4f ReadQuat(std::ifstream& Ar)
-{
-	float X = ReadData<float>(Ar);
-	float Y = ReadData<float>(Ar);
-	float Z = ReadData<float>(Ar);
-	float W = ReadData<float>(Ar);
-	auto Data = FQuat4f(X, Y, Z, W);
-	return Data;
-}
+FQuat4f ReadQuat(std::ifstream& Ar);
 
-std::string ReadString(std::ifstream& Ar, int32 Size) {
-	std::string String;
-	String.resize(Size);
-	Ar.read(&String[0], Size);  // Read the data directly into the strings buffer
-	return String;
-}
+std::string ReadString(std::ifstream& Ar, int32 Size);
 
-std::string ReadFString(std::ifstream& Ar) {
-	int32 Size = ReadData<int32>(Ar);
-	std::string String;
-	String.resize(Size);
-	Ar.read(&String[0], Size);
-	return String;
-}
+std::string ReadFString(std::ifstream& Ar);
 
 template<typename T>
 void ReadBufferArray(const char* DataArray, int& Offset, int ArraySize, TArray<T>& Data) {
@@ -58,31 +40,12 @@ T ReadBufferData(const char* DataArray, int& Offset) {
 	return Data;
 }
 
-FQuat4f ReadBufferQuat(const char* DataArray, int& Offset) {
-	float X = ReadBufferData<float>(DataArray, Offset);
-	float Y = ReadBufferData<float>(DataArray, Offset);
-	float Z = ReadBufferData<float>(DataArray, Offset);
-	float W = ReadBufferData<float>(DataArray, Offset);
-	auto Data = FQuat4f(X, Y, Z, W);
-	return Data;
-}
+FQuat4f ReadBufferQuat(const char* DataArray, int& Offset);
 
-std::string ReadBufferString(const char* DataArray, int& Offset, int32 Size) {
-	std::string String;
-	String.resize(Size);
-	std::memcpy(&String[0], &DataArray[Offset], Size);
-	Offset += Size;
-	return String;
-}
+std::string ReadBufferString(const char* DataArray, int& Offset, int32 Size);
 
-std::string ReadBufferFString(const char* DataArray, int& Offset) {
-	int32 Size = ReadBufferData<int32>(DataArray, Offset);
-	std::string String;
-	String.resize(Size);
-	std::memcpy(&String[0], &DataArray[Offset], Size);
-	Offset += Size;
-	return String;
-}
+std::string ReadBufferFString(const char* DataArray, int& Offset);
+
 struct FVertexColorChunk
 {
 	std::string Name;
@@ -138,6 +101,7 @@ struct FUEFormatHeader
 	int32 CompressedSize;
 	int32 UncompressedSize;
 };
+
 class UEModelReader
 {
 public:

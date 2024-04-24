@@ -1,0 +1,17 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\private\\widgets\\ueanimwidget.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\intermediate\\build\\win64\\x64\\uutestingeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "Includes": [
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\ueformat\\definitions.ueformat.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\public\\widgets\\ueanimwidget.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\public\\widgets\\ueanimimportoptions.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\intermediate\\build\\win64\\unrealeditor\\inc\\ueformat\\uht\\ueanimimportoptions.generated.h",
+            "c:\\program files\\epic games\\ue_5.4\\engine\\source\\developer\\toolwidgets\\public\\sprimarybutton.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

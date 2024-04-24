@@ -2,16 +2,14 @@
 
 #include "Factories/UEModelFactory.h"
 #include "AssetToolsModule.h"
-#include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "SkeletalMeshModelingToolsMeshConverter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/StaticMesh.h"
 #include "Widgets/SkelMesh/USkelMeshWidget.h"
-#include "Widgets/SkelMesh/USkelMeshWidget.h"
-#include <Interfaces/IMainFrameModule.h>
 
 /* UTextAssetFactory structors
  *****************************************************************************/
@@ -36,29 +34,7 @@ UObject* UEModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 
 	if (Data.Bones.Num())
 	{
-		//Ui
-		if (SettingsImporter->bInitialized == false)
-		{
-			TSharedPtr<USkelMeshWidget> ImportOptionsWindow;
-			TSharedPtr<SWindow> ParentWindow;
-			if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
-			{
-				IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
-				ParentWindow = MainFrame.GetParentWindow();
-			}
-
-			TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("Skeletal Mesh Import Options"))).SizingRule(ESizingRule::Autosized);
-			Window->SetContent
-			(
-				SAssignNew(ImportOptionsWindow, USkelMeshWidget).WidgetWindow(Window)
-			);
-			SettingsImporter = ImportOptionsWindow.Get()->Stun;
-			FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
-			bImport = ImportOptionsWindow.Get()->ShouldImport();
-			bImportAll = ImportOptionsWindow.Get()->ShouldImportAll();
-			SettingsImporter->bInitialized = true;
-		}
-		USkeleton* Skeleton = SettingsImporter->Skeleton;
+		USkeleton* Skeleton = nullptr;
 		USkeletalMesh* SkeletalMesh = CreateSkeletalMeshFromStatic(Data, Mesh, Skeleton, Flags);
 		Mesh->RemoveFromRoot();
 		Mesh->MarkAsGarbage();
@@ -82,15 +58,15 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 	MeshDesc.ReserveNewVertexInstances(Data.Vertices.Num());
 	MeshDesc.ReserveNewPolygons(Data.Indices.Num() / 3);
 	MeshDesc.ReserveNewPolygonGroups(Data.Materials.Num());
+	MeshDesc.SetNumUVChannels(Data.TextureCoordinates.Num());
 
 	TArray<FVertexInstanceID> VertexInstanceIDs;
 	const auto VertexPositions = Attributes.GetVertexPositions();
 	const auto VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 	const auto VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
 	const auto VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-	const auto VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	const auto VertexInstanceColors = Attributes.GetVertexInstanceColors();
-
+	const auto VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 	VertexInstanceUVs.SetNumChannels(Data.TextureCoordinates.Num());
 
 	for (auto i = 0; i < Data.Vertices.Num(); i++)
@@ -99,16 +75,16 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 		FVertexInstanceID VertexInstanceID = MeshDesc.CreateVertexInstance(VertexID);
 		VertexInstanceIDs.Add(VertexInstanceID);
 
-		VertexPositions[VertexID] = FVector3f(Data.Vertices[i].X, -Data.Vertices[i].Y, Data.Vertices[i].Z);
+		VertexPositions.Set(VertexID, FVector3f(Data.Vertices[i].X, -Data.Vertices[i].Y, Data.Vertices[i].Z));
 		if (Data.Normals.Num() > 0) {
-			VertexInstanceBinormalSigns[VertexInstanceID] = Data.Normals[i].X;
-			VertexInstanceNormals[VertexInstanceID] = FVector3f(Data.Normals[i].Y, -Data.Normals[i].Z, Data.Normals[i].W);
+			VertexInstanceBinormalSigns.Set(VertexInstanceID, Data.Normals[i].X);
+			VertexInstanceNormals.Set(VertexInstanceID, FVector3f(Data.Normals[i].Y, -Data.Normals[i].Z, Data.Normals[i].W));
 		}
 		if (Data.Tangents.Num() > 0) {
-			VertexInstanceTangents[VertexInstanceID] = FVector3f(Data.Tangents[i].X, -Data.Tangents[i].Y, Data.Tangents[i].Z);
+			VertexInstanceTangents.Set(VertexInstanceID, FVector3f(Data.Tangents[i].X, -Data.Tangents[i].Y, Data.Tangents[i].Z));
 		}
 		if (Data.VertexColors.Num() > 0) {
-			VertexInstanceColors[VertexInstanceID] = FVector4f(Data.VertexColors[0].Data[i]);
+			VertexInstanceColors.Set(VertexInstanceID, FVector4f(Data.VertexColors[0].Data[i]));
 		}
 		for (auto u = 0; u < Data.TextureCoordinates.Num(); u++)
 		{
@@ -139,8 +115,6 @@ UStaticMesh* UEModelFactory::CreateStaticMesh(UEModelReader& Data, UObject* Pare
 	}
 
 	UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
-	BuildParams.bBuildSimpleCollision = false;
-	BuildParams.bFastBuild = true;
 	StaticMesh->NaniteSettings.bEnabled = false;
 
 	StaticMesh->BuildFromMeshDescriptions({ &MeshDesc }, BuildParams);
@@ -154,14 +128,7 @@ USkeletalMesh* UEModelFactory::CreateSkeletalMeshFromStatic(UEModelReader& Data,
 	FReferenceSkeleton RefSkeleton;
 	FSkeletalMeshImportData SkelMeshImportData;
 
-	//create new Skel if nothin selected in Ui
-	if (Skeleton == nullptr) {
-		Skeleton = CreateSkeleton(Mesh->GetPackage(), Flags, Data, RefSkeleton, SkelMeshImportData);
-	}
-	else //can only get RefSkel from existing Skel so have to do this
-	{
-		RefSkeleton = Skeleton->GetReferenceSkeleton();
-	}
+	Skeleton = CreateSkeleton(Mesh->GetPackage(), Flags, Data, RefSkeleton, SkelMeshImportData);
 
 	USkeletalMeshFromStaticMeshFactory* SkeletalMeshFactory = NewObject<USkeletalMeshFromStaticMeshFactory>();
 	SkeletalMeshFactory->StaticMesh = Mesh;

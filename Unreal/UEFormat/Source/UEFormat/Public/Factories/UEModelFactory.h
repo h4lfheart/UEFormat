@@ -2,6 +2,8 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Factories/Factory.h"
 #include "Readers/UEModelReader.h"
 #include "Widgets/SkelMesh/USkelMeshImportOptions.h"

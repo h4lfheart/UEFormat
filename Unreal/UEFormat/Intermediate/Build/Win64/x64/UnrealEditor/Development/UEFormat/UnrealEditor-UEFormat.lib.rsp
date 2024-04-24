@@ -1,0 +1,24 @@
+/NOLOGO
+/errorReport:prompt
+/MACHINE:x64
+/SUBSYSTEM:WINDOWS
+/DEF
+/NAME:"UnrealEditor-UEFormat.dll"
+/IGNORE:4221
+/NODEFAULTLIB
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Intermediate\Build\Win64\x64\UUTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\Module.UEFormat.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\BPFL.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEAnimFactory.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEModelFactory.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEAnimReader.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEModelReader.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEAnimImportOptions.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEAnimWidget.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UAnimImportOptions.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UAnimWidget.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\USkelMeshImportOptions.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\USkelMeshWidget.cpp.obj"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\Default.rc2.res"
+/OUT:"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UUTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UnrealEditor-UEFormat.lib"

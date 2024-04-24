@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include <fstream>
 #include "UEModelReader.h"
+#include "Containers/Array.h"
+#include "Math/Quat.h"
 
 struct FFloatKey
 {
