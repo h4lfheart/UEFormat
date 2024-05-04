@@ -5,6 +5,8 @@ import gzip
 import struct
 import numpy as np
 import zstandard as zstd
+import requests
+import lzma
 from enum import IntEnum, auto
 
 import bpy
@@ -18,8 +20,12 @@ from ctypes import cdll, c_char_p, create_string_buffer
 class Oodle:
     lib = None
 
-    def __init__(self, path):
-        self.lib = cdll.LoadLibrary(path)
+    def __init__(self):
+        print(self.user_oodle_path())
+        if not os.path.exists(self.user_oodle_path()):
+            self.download_dll()
+
+        self.lib = cdll.LoadLibrary(self.user_oodle_path())
 
     def decompress(self, source, compressed_size, uncompressed_size):
         uncompressed_buffer = create_string_buffer(uncompressed_size)
@@ -30,8 +36,27 @@ class Oodle:
 
         return uncompressed_buffer.raw
 
+    warframe_content_host = "https://content.warframe.com"
+    warframe_origin_host = "https://origin.warframe.com"
+    warframe_index_path = "/origin/50F7040A/index.txt.lzma"
+    warframe_index_url = warframe_origin_host + warframe_index_path
+    oodle_dll_name = "oo2core_9_win64.dll"
 
-oodle = Oodle("D:/oo2core_9_win64.dll")
+    def download_dll(self):
+        index_response = requests.get(Oodle.warframe_index_url)
+        index_decompressed_data = lzma.decompress(index_response.content)
+        lines = index_decompressed_data.decode().splitlines()
+        dll_line: str = next(filter(lambda line: Oodle.oodle_dll_name in line, lines))
+        dll_url = Oodle.warframe_content_host + dll_line[:dll_line.index(',')]
+
+        dll_response = requests.get(dll_url)
+        dll_decompressed_data = lzma.decompress(dll_response.content)
+
+        with open(self.user_oodle_path(), 'xb') as dll_file:
+            dll_file.write(dll_decompressed_data)
+
+    def user_oodle_path(self):
+        return os.path.join(os.getcwd(), Oodle.oodle_dll_name)
 
 
 # ---------- ADDON ---------- #
@@ -158,12 +183,16 @@ operators = [UEFORMAT_PT_Panel, UFImportUEModel, UFImportUEAnim, UFSettings]
 
 
 def register():
-    global zstd_decompresser
-    zstd_decompresser = zstd.ZstdDecompressor()
+    global zstd_decompressor
+    zstd_decompressor = zstd.ZstdDecompressor()
+
+
+    global oodle_decompressor
+    oodle_decompressor = Oodle()
 
     # if used as script decomresser can be initialized like this
     # from . import ue_format
-    # ue_format.zstd_decompresser = zstd.ZstdDecompressor()
+    # ue_format.zstd_decompressor = zstd.ZstdDecompressor()
 
 
     for operator in operators:
@@ -180,8 +209,11 @@ def unregister():
     del Scene.uf_settings
     bpy.types.TOPBAR_MT_file_import.remove(draw_import_menu)
 
-    global zstd_decompresser
-    del zstd_decompresser
+    global zstd_decompressor
+    del zstd_decompressor
+    
+    global oodle_decompressor
+    del oodle_decompressor
 
 
 if __name__ == "__main__":
@@ -414,16 +446,15 @@ class UEFormatImport:
                 compression_type = ar.read_fstring()
                 uncompressed_size = ar.read_int()
                 compressed_size = ar.read_int()
-                Log.info(f"Compressed With: {compression_type}")
 
                 if compression_type == "GZIP":
                     read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
                 elif compression_type == "ZSTD":
-                    read_archive = FArchiveReader(zstd_decompresser.decompress(ar.read_to_end(), uncompressed_size))
+                    read_archive = FArchiveReader(zstd_decompressor.decompress(ar.read_to_end(), uncompressed_size))
                 elif compression_type == "Oodle":
-                    read_archive = FArchiveReader(oodle.decompress(ar.read_to_end(), compressed_size, uncompressed_size))
+                    read_archive = FArchiveReader(oodle_decompressor.decompress(ar.read_to_end(), compressed_size, uncompressed_size))
                 else:
-                    Log.info(f"Unknown Compression Type: {compression_type}")
+                    Log.error(f"Unknown Compression Type: {compression_type}")
                     return
 
             if identifier == MODEL_IDENTIFIER:
@@ -442,6 +473,7 @@ class UEFormatImport:
         for index, lod in enumerate(data.lods):
             lod_name = f"{name}_{lod.name}"
             mesh_data = bpy.data.meshes.new(lod_name)
+            
             mesh_data.from_pydata(lod.vertices, [], lod.indices)
     
             mesh_object = bpy.data.objects.new(lod_name, mesh_data)
@@ -662,7 +694,7 @@ class UEFormatImport:
                 collision_object_name = name + f"_Collision_{collision_name}"
                 collision_mesh_data = bpy.data.meshes.new(collision_object_name)
                 collision_mesh_data.from_pydata(collision.vertices, [], collision.indices)
-        
+
                 collision_mesh_object = bpy.data.objects.new(collision_object_name, collision_mesh_data)
                 collision_mesh_object.display_type = 'WIRE'
                 if self.options.link:
@@ -763,8 +795,6 @@ class UEFormatImport:
             section_name = ar.read_fstring()
             array_size = ar.read_int()
             byte_size = ar.read_int()
-            
-            Log.info(f"Section: {section_name} | Count: {array_size} | Byte Size: {byte_size}")
 
             if section_name == "LODS":
                 data.lods = []
@@ -774,7 +804,6 @@ class UEFormatImport:
                     lod = UEModelLOD(ar.chunk(lod_size), lod_name, self.options.scale_factor)
                     data.lods.append(lod)
             elif section_name == "SKELETON":
-                Log.info(ar.data.tell())
                 data.skeleton = UEModelSkeleton(ar.chunk(byte_size), self.options.scale_factor)
             elif section_name == "COLLISION":
                 data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
@@ -914,8 +943,6 @@ class UEModelSkeleton:
             header_name = ar.read_fstring()
             array_size = ar.read_int()
             byte_size = ar.read_int()
-
-            Log.info(f"Sub-Section: {header_name} | Count: {array_size} | Byte Size: {byte_size}")
 
             pos = ar.data.tell()
             if header_name == "BONES":
