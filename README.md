@@ -23,6 +23,7 @@ A model and animation export format created for Unreal Engine game asset extract
 - Bones
 - Sockets
 - Morph Targets
+- Convex Collision Geometry
 
 ### Animation Data (.ueanim)
 - Location Keys
@@ -32,7 +33,6 @@ A model and animation export format created for Unreal Engine game asset extract
 
 ## Future Features (TBD)
 ### Model Data (.uemodel)
-- Collision Geometry (Static Mesh)
 - Physics Bodies (Skeletal Mesh)
 - Virtual Bones (Skeletal Mesh)
 - Embedded LODs (Skeletal + Static Mesh)
