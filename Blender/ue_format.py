@@ -50,6 +50,9 @@ class UEFORMAT_PT_Panel(bpy.types.Panel):
 
         box = layout.box()
         box.label(text="Model", icon="OUTLINER_OB_MESH")
+        box.row().prop(bpy.context.scene.uf_settings, "import_collision")
+        box.row().prop(bpy.context.scene.uf_settings, "import_morph_targets")
+        box.row().prop(bpy.context.scene.uf_settings, "import_sockets")
         box.row().prop(bpy.context.scene.uf_settings, "reorient_bones")
         box.row().prop(bpy.context.scene.uf_settings, "bone_length")
 
@@ -79,10 +82,14 @@ class UFImportUEModel(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     directory: StringProperty(subtype='DIR_PATH')
 
     def execute(self, context):
+        options = UEModelOptions(scale_factor=bpy.context.scene.uf_settings.scale,
+                                bone_length=bpy.context.scene.uf_settings.bone_length,
+                                reorient_bones=bpy.context.scene.uf_settings.reorient_bones,
+                                import_collision=bpy.context.scene.uf_settings.import_collision,
+                                import_sockets=bpy.context.scene.uf_settings.import_sockets,
+                                import_morph_targets=bpy.context.scene.uf_settings.import_morph_targets)
         for file in self.files:
-            UEFormatImport(UEModelOptions(scale_factor=bpy.context.scene.uf_settings.scale,
-                                          bone_length=bpy.context.scene.uf_settings.bone_length,
-                                          reorient_bones=bpy.context.scene.uf_settings.reorient_bones)).import_file(os.path.join(self.directory, file.name))
+            UEFormatImport(options).import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
 
     def draw(self, context):
@@ -101,9 +108,10 @@ class UFImportUEAnim(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
     directory: StringProperty(subtype='DIR_PATH')
 
     def execute(self, context):
+        options = UEAnimOptions(scale_factor=bpy.context.scene.uf_settings.scale,
+                               rotation_only=bpy.context.scene.uf_settings.rotation_only)
         for file in self.files:
-            UEFormatImport(UEAnimOptions(scale_factor=bpy.context.scene.uf_settings.scale,
-                                         rotation_only=bpy.context.scene.uf_settings.rotation_only)).import_file(os.path.join(self.directory, file.name))
+            UEFormatImport(options).import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
 
     def draw(self, context):
@@ -114,8 +122,10 @@ class UFSettings(bpy.types.PropertyGroup):
     scale: FloatProperty(name="Scale", default=0.01, min=0.01)
     bone_length: FloatProperty(name="Bone Length", default=5, min=0.1)
     reorient_bones: BoolProperty(name="Reorient Bones", default=False)
+    import_collision: BoolProperty(name="Import Collision", default=False)
+    import_morph_targets: BoolProperty(name="Import Morph Targets", default=True)
+    import_sockets: BoolProperty(name="Import Sockets", default=True)
     rotation_only: BoolProperty(name="Rotation Only", default=False)
-    instance_meshes: BoolProperty(name="Instance Meshes", default=True)
 
 
 def draw_import_menu(self, context):
@@ -200,7 +210,8 @@ def get_active_armature():
 
 class Log:
     INFO = u"\u001b[36m"
-    ERROR = u"\u001b[33m"
+    WARN = u"\u001b[33m"
+    ERROR = u"\u001b[31m"
     RESET = u"\u001b[0m"
 
     NoLog = False
@@ -209,6 +220,11 @@ class Log:
     def info(message):
         if Log.NoLog: return
         print(f"{Log.INFO}[UEFORMAT] {Log.RESET}{message}")
+        
+    @staticmethod
+    def warn(message):
+        if Log.NoLog: return
+        print(f"{Log.WARN}[UEFORMAT] {Log.RESET}{message}")
 
     @staticmethod
     def error(message):
@@ -313,6 +329,7 @@ class EUEFormatVersion(IntEnum):
     BeforeCustomVersionWasAdded = 0
     SerializeBinormalSign = 1
     AddMultipleVertexColors = 2
+    AddConvexCollisionGeom = 3
 
     VersionPlusOne = auto()
     LatestVersion = VersionPlusOne - 1
@@ -322,11 +339,14 @@ class UEFormatOptions:
 
 class UEModelOptions(UEFormatOptions):
 
-    def __init__(self, link=True, scale_factor=0.01, bone_length=4.0, reorient_bones=False):
+    def __init__(self, link=True, scale_factor=0.01, bone_length=4.0, reorient_bones=False, import_collision=False, import_sockets=True, import_morph_targets=True):
         self.scale_factor = scale_factor
         self.bone_length = bone_length
         self.reorient_bones = reorient_bones
         self.link = link
+        self.import_collision = import_collision
+        self.import_sockets = import_sockets
+        self.import_morph_targets = import_morph_targets
 
 
 class UEAnimOptions(UEFormatOptions):
@@ -423,6 +443,8 @@ class UEFormatImport:
                     data.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
             elif header_name == "MATERIALS":
                 data.materials = ar.read_array(array_size, lambda ar: Material(ar))
+            elif header_name == "COLLISION" and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
+                data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
             elif header_name == "WEIGHTS":
                 data.weights = ar.read_array(array_size, lambda ar: Weight(ar))
             elif header_name == "BONES":
@@ -432,6 +454,7 @@ class UEFormatImport:
             elif header_name == "SOCKETS":
                 data.sockets = ar.read_array(array_size, lambda ar: Socket(ar, self.options.scale_factor))
             else:
+                Log.warn("Unknown Data: {header_name}")
                 ar.skip(byte_size)
             ar.data.seek(pos + byte_size, 0)
 
@@ -463,7 +486,7 @@ class UEFormatImport:
                     vertex_group.add([weight.vertex_index], weight.weight, 'ADD')
     
             # morph targets
-            if len(data.morphs) > 0:
+            if self.options.import_morph_targets and len(data.morphs) > 0:
                 default_key = mesh_object.shape_key_add(from_mix=False)
                 default_key.name = "Default"
                 default_key.interpolation = 'KEY_LINEAR'
@@ -506,7 +529,7 @@ class UEFormatImport:
                         mesh_data.polygons[face_index].material_index = i
 
         # skeleton
-        if len(data.bones) > 0 or len(data.sockets) > 0:
+        if len(data.bones) > 0 or (self.options.import_sockets and len(data.sockets) > 0):
             armature_data = bpy.data.armatures.new(name=name)
             armature_data.display_type = 'STICK'
 
@@ -567,11 +590,13 @@ class UEFormatImport:
                         bone.color.palette = 'THEME03'
 
         # sockets
-        if len(data.sockets) > 0:
+        if self.options.import_sockets and len(data.sockets) > 0:
             # create sockets
             bpy.ops.object.mode_set(mode='EDIT')
+            socket_collection = armature_data.collections.new("Sockets")
             for socket in data.sockets:
                 socket_bone = edit_bones.new(socket.name)
+                socket_collection.assign(socket_bone)
                 socket_bone["is_socket"] = True
                 parent_bone = get_case_insensitive(edit_bones, socket.parent_name)
                 if parent_bone is None:
@@ -601,6 +626,9 @@ class UEFormatImport:
                         continue
 
                     children.append(child)
+
+                if len(children) == 0 and bone.parent is None:
+                    continue
 
                 target_length = bone.length
                 if len(children) == 0:
@@ -633,6 +661,19 @@ class UEFormatImport:
 
 
             bpy.ops.object.mode_set(mode='OBJECT')
+            
+        # collision
+        if self.options.import_collision and len(data.collisions) > 0 and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
+            for index, collision in enumerate(data.collisions):
+                collision_name = index if collision.name == "None" else collision.name
+                collision_object_name = name + f"_Collision_{collision_name}"
+                collision_mesh_data = bpy.data.meshes.new(collision_object_name)
+                collision_mesh_data.from_pydata(collision.vertices, [], collision.indices)
+        
+                collision_mesh_object = bpy.data.objects.new(collision_object_name, collision_mesh_data)
+                collision_mesh_object.display_type = 'WIRE'
+                if self.options.link:
+                    bpy.context.collection.objects.link(collision_mesh_object)
 
         return return_object
 
@@ -732,6 +773,7 @@ class UEModel:
     colors = []
     uvs = []
     materials = []
+    collisions = []
     morphs = []
     weights = []
     bones = []
@@ -762,6 +804,21 @@ class Material:
         self.material_name = ar.read_fstring()
         self.first_index = ar.read_int()
         self.num_faces = ar.read_int()
+        
+class Collision:
+    name = ""
+    vertices = []
+    indices = []
+
+    def __init__(self, ar: FArchiveReader, scale):
+        self.name = ar.read_fstring()
+        
+        vertices_count = ar.read_int()
+        vertices_flattened = ar.read_float_vector(vertices_count * 3)
+        self.vertices = (np.array(vertices_flattened) * scale).reshape(vertices_count, 3)
+        
+        indices_count = ar.read_int()
+        self.indices = np.array(ar.read_int_vector(indices_count), dtype=np.int32).reshape(indices_count // 3, 3)
 
 
 class Bone:
