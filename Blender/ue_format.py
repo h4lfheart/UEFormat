@@ -12,6 +12,27 @@ import bpy_extras
 from bpy.props import StringProperty, BoolProperty, PointerProperty, FloatProperty, CollectionProperty
 from bpy.types import Scene
 from mathutils import Vector, Matrix, Quaternion
+from ctypes import cdll, c_char_p, create_string_buffer
+
+
+class Oodle:
+    lib = None
+
+    def __init__(self, path):
+        self.lib = cdll.LoadLibrary(path)
+
+    def decompress(self, source, compressed_size, uncompressed_size):
+        uncompressed_buffer = create_string_buffer(uncompressed_size)
+        decoded_size = self.lib.OodleLZ_Decompress(c_char_p(source), compressed_size, uncompressed_buffer,
+                                                   uncompressed_size, 1, 0, 0, None, 0, None, None, None, 0, 3)
+        if decoded_size <= 0:
+            raise Exception(f"Oodle decompression failed with result {decoded_size}")
+
+        return uncompressed_buffer.raw
+
+
+oodle = Oodle("D:/oo2core_9_win64.dll")
+
 
 # ---------- ADDON ---------- #
 
@@ -319,6 +340,9 @@ class FArchiveReader:
         for counter in range(count):
             array.append(predicate(self))
         return array
+    
+    def chunk(self, size):
+        return FArchiveReader(self.read(size))
 
 
 MAGIC = "UEFORMAT"
@@ -330,6 +354,7 @@ class EUEFormatVersion(IntEnum):
     SerializeBinormalSign = 1
     AddMultipleVertexColors = 2
     AddConvexCollisionGeom = 3
+    LevelOfDetailFormatRestructure = 4
 
     VersionPlusOne = auto()
     LatestVersion = VersionPlusOne - 1
@@ -389,109 +414,64 @@ class UEFormatImport:
                 compression_type = ar.read_fstring()
                 uncompressed_size = ar.read_int()
                 compressed_size = ar.read_int()
+                Log.info(f"Compressed With: {compression_type}")
 
                 if compression_type == "GZIP":
                     read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
                 elif compression_type == "ZSTD":
                     read_archive = FArchiveReader(zstd_decompresser.decompress(ar.read_to_end(), uncompressed_size))
+                elif compression_type == "Oodle":
+                    read_archive = FArchiveReader(oodle.decompress(ar.read_to_end(), compressed_size, uncompressed_size))
                 else:
                     Log.info(f"Unknown Compression Type: {compression_type}")
                     return
 
             if identifier == MODEL_IDENTIFIER:
                 return self.import_uemodel_data(read_archive, object_name)
-            
+
             elif identifier == ANIM_IDENTIFIER:
                 return self.import_ueanim_data(read_archive, object_name)
 
     def import_uemodel_data(self, ar: FArchiveReader, name: str):
-        data = UEModel()
+        if self.file_version >= EUEFormatVersion.LevelOfDetailFormatRestructure:
+            data = self.deserialize_model(ar)
+        else:
+            data = self.deserialize_model_legacy(ar)
 
-        while not ar.eof():
-            header_name = ar.read_fstring()
-            array_size = ar.read_int()
-            byte_size = ar.read_int()
-
-            pos = ar.data.tell()
-            if header_name == "VERTICES":
-                flattened = ar.read_float_vector(array_size * 3)
-                data.vertices = (np.array(flattened) * self.options.scale_factor).reshape(array_size, 3)
-
-            elif header_name == "INDICES":
-                data.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
-            elif header_name == "NORMALS":
-                if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
-                    flattened = np.array(ar.read_float_vector(array_size * 4)) # W XYZ # TODO: change to XYZ W
-                    data.normals = flattened.reshape(-1,4)[:,1:]
-                else:
-                    flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
-                    data.normals = flattened
-            elif header_name == "TANGENTS":
-                ar.skip(array_size * 3 * 3)
-                # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
-            elif header_name == "VERTEXCOLORS":
-                if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
-                    data.colors = []
-                    for i in range(array_size):
-                        data.colors.append(VertexColor.read(ar))
-                else:
-                    data.colors = [VertexColor("COL0", (np.array(ar.read_byte_vector(array_size * 4)).reshape(array_size, 4) / 255).astype(np.float32))]
-            elif header_name == "TEXCOORDS":
-                data.uvs = []
-                for i in range(array_size):
-                    count = ar.read_int()
-                    data.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
-            elif header_name == "MATERIALS":
-                data.materials = ar.read_array(array_size, lambda ar: Material(ar))
-            elif header_name == "COLLISION" and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
-                data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
-            elif header_name == "WEIGHTS":
-                data.weights = ar.read_array(array_size, lambda ar: Weight(ar))
-            elif header_name == "BONES":
-                data.bones = ar.read_array(array_size, lambda ar: Bone(ar, self.options.scale_factor))
-            elif header_name == "MORPHTARGETS":
-                data.morphs = ar.read_array(array_size, lambda ar: MorphTarget(ar, self.options.scale_factor))
-            elif header_name == "SOCKETS":
-                data.sockets = ar.read_array(array_size, lambda ar: Socket(ar, self.options.scale_factor))
-            else:
-                Log.warn("Unknown Data: {header_name}")
-                ar.skip(byte_size)
-            ar.data.seek(pos + byte_size, 0)
-
-        # geometry
-        has_geometry = len(data.vertices) > 0 and len(data.indices) > 0
-        if has_geometry:
-            mesh_data = bpy.data.meshes.new(name)
-            mesh_data.from_pydata(data.vertices, [], data.indices)
+        created_lods = []
+        for index, lod in enumerate(data.lods):
+            lod_name = f"{name}_{lod.name}"
+            mesh_data = bpy.data.meshes.new(lod_name)
+            mesh_data.from_pydata(lod.vertices, [], lod.indices)
     
-            mesh_object = bpy.data.objects.new(name, mesh_data)
+            mesh_object = bpy.data.objects.new(lod_name, mesh_data)
             return_object = mesh_object
             if self.options.link:
                 bpy.context.collection.objects.link(mesh_object)
     
             # normals
-            if len(data.normals) > 0:
+            if len(lod.normals) > 0:
                 mesh_data.polygons.foreach_set("use_smooth", [True] * len(mesh_data.polygons))
-                mesh_data.normals_split_custom_set_from_vertices(data.normals)
+                mesh_data.normals_split_custom_set_from_vertices(lod.normals)
                 if bpy.app.version < (4, 1, 0):
                     mesh_data.use_auto_smooth = True
 
             # weights
-            if len(data.weights) > 0 and len(data.bones) > 0:
-                for weight in data.weights:
-                    bone_name = data.bones[weight.bone_index].name
+            if len(lod.weights) > 0 and data.skeleton is not None and len(data.skeleton.bones) > 0:
+                for weight in lod.weights:
+                    bone_name = data.skeleton.bones[weight.bone_index].name
                     vertex_group = mesh_object.vertex_groups.get(bone_name)
                     if not vertex_group:
                         vertex_group = mesh_object.vertex_groups.new(name=bone_name)
                     vertex_group.add([weight.vertex_index], weight.weight, 'ADD')
     
             # morph targets
-            if self.options.import_morph_targets and len(data.morphs) > 0:
+            if self.options.import_morph_targets and len(lod.morphs) > 0:
                 default_key = mesh_object.shape_key_add(from_mix=False)
                 default_key.name = "Default"
                 default_key.interpolation = 'KEY_LINEAR'
     
-                for morph in data.morphs:
+                for morph in lod.morphs:
                     key = mesh_object.shape_key_add(from_mix=False)
                     key.name = morph.name
                     key.interpolation = 'KEY_LINEAR'
@@ -505,19 +485,19 @@ class UEFormatImport:
             vertices = [vertex for polygon in mesh_data.polygons for vertex in polygon.vertices]
             # indices = np.array([index for polygon in mesh_data.polygons for index in polygon.loop_indices], dtype=np.int32)
             # assert np.all(indices[:-1] <= indices[1:]) # check if indices are sorted hmm idk
-            for color_info in data.colors:
+            for color_info in lod.colors:
                 remapped = do_remapping(color_info.data, vertices)
                 vertex_color = mesh_data.color_attributes.new(domain='CORNER', type='BYTE_COLOR', name=color_info.name)
                 vertex_color.data.foreach_set("color", squish(remapped))
 
-            for index, uvs in enumerate(data.uvs):
+            for index, uvs in enumerate(lod.uvs):
                 remapped = do_remapping(uvs, vertices)
                 uv_layer = mesh_data.uv_layers.new(name="UV" + str(index))
                 uv_layer.data.foreach_set("uv", squish(remapped))
 
             # materials
-            if len(data.materials) > 0:
-                for i, material in enumerate(data.materials):
+            if len(lod.materials) > 0:
+                for i, material in enumerate(lod.materials):
                     mat = bpy.data.materials.get(material.material_name)
                     if mat is None:
                         mat = bpy.data.materials.new(name=material.material_name)
@@ -527,143 +507,156 @@ class UEFormatImport:
                     end_face_index = start_face_index + material.num_faces
                     for face_index in range(start_face_index, end_face_index):
                         mesh_data.polygons[face_index].material_index = i
+                        
+            created_lods.append(mesh_object)
+
 
         # skeleton
-        if len(data.bones) > 0 or (self.options.import_sockets and len(data.sockets) > 0):
+        if data.skeleton is not None and (len(data.skeleton.bones) > 0 or (self.options.import_sockets and len(data.skeleton.sockets) > 0)):
             armature_data = bpy.data.armatures.new(name=name)
             armature_data.display_type = 'STICK'
+            
+            template_armature_object = bpy.data.objects.new(name + "_Template_Skeleton", armature_data)
+            template_armature_object.show_in_front = True
+            bpy.context.collection.objects.link(template_armature_object)
+            bpy.context.view_layer.objects.active = template_armature_object
+            template_armature_object.select_set(True)
 
-            armature_object = bpy.data.objects.new(name + "_Skeleton", armature_data)
-            armature_object.show_in_front = True
-            return_object = armature_object
-
-            if self.options.link:
-                bpy.context.collection.objects.link(armature_object)
-            bpy.context.view_layer.objects.active = armature_object
-            armature_object.select_set(True)
-
-            if has_geometry:
-                mesh_object.parent = armature_object
-
-        if len(data.bones) > 0:
-            # create bones
-            bpy.ops.object.mode_set(mode='EDIT')
-            edit_bones = armature_data.edit_bones
-            for bone in data.bones:
-                bone_pos = Vector(bone.position)
-                bone_rot = Quaternion((bone.rotation[3], bone.rotation[0], bone.rotation[1], bone.rotation[2]))  # xyzw -> wxyz
-
-                edit_bone = edit_bones.new(bone.name)
-                edit_bone["orig_loc"] = bone_pos
-                edit_bone["orig_quat"] = bone_rot.conjugated() # todo unravel all these conjugations wtf, it works so imma leave it but jfc it's awful
-                edit_bone.length = self.options.bone_length * self.options.scale_factor
-
-                bone_matrix = Matrix.Translation(bone_pos) @ bone_rot.to_matrix().to_4x4()
-
-                if bone.parent_index >= 0:
-                    parent_bone = edit_bones.get(data.bones[bone.parent_index].name)
-                    edit_bone.parent = parent_bone
-                    bone_matrix = parent_bone.matrix @ bone_matrix
-
-                edit_bone.matrix = bone_matrix
+            if len(data.skeleton.bones) > 0:
+                # create bones
+                bpy.ops.object.mode_set(mode='EDIT')
+                edit_bones = armature_data.edit_bones
+                for bone in data.skeleton.bones:
+                    bone_pos = Vector(bone.position)
+                    bone_rot = Quaternion((bone.rotation[3], bone.rotation[0], bone.rotation[1], bone.rotation[2]))  # xyzw -> wxyz
+        
+                    edit_bone = edit_bones.new(bone.name)
+                    edit_bone["orig_loc"] = bone_pos
+                    edit_bone["orig_quat"] = bone_rot.conjugated() # todo unravel all these conjugations wtf, it works so imma leave it but jfc it's awful
+                    edit_bone.length = self.options.bone_length * self.options.scale_factor
+        
+                    bone_matrix = Matrix.Translation(bone_pos) @ bone_rot.to_matrix().to_4x4()
+        
+                    if bone.parent_index >= 0:
+                        parent_bone = edit_bones.get(data.skeleton.bones[bone.parent_index].name)
+                        edit_bone.parent = parent_bone
+                        bone_matrix = parent_bone.matrix @ bone_matrix
+        
+                    edit_bone.matrix = bone_matrix
+                    
+                    if not self.options.reorient_bones:
+                        edit_bone["post_quat"] = bone_rot
+        
+                bpy.ops.object.mode_set(mode='OBJECT')
+        
+            # sockets
+            if self.options.import_sockets and len(data.skeleton.sockets) > 0:
+                # create sockets
+                bpy.ops.object.mode_set(mode='EDIT')
+                socket_collection = armature_data.collections.new("Sockets")
+                for socket in data.skeleton.sockets:
+                    socket_bone = edit_bones.new(socket.name)
+                    socket_collection.assign(socket_bone)
+                    socket_bone["is_socket"] = True
+                    parent_bone = get_case_insensitive(edit_bones, socket.parent_name)
+                    if parent_bone is None:
+                        continue
+                    socket_bone.parent = parent_bone
+                    socket_bone.length = self.options.bone_length * self.options.scale_factor
+                    socket_bone.matrix = parent_bone.matrix @ Matrix.Translation(socket.position) @ Quaternion((socket.rotation[3],socket.rotation[0],socket.rotation[1],socket.rotation[2])).to_matrix().to_4x4()  # xyzw -> wxyz
+        
+                bpy.ops.object.mode_set(mode='OBJECT')
+        
+            if len(data.skeleton.bones) > 0 and self.options.reorient_bones:
+                bpy.ops.object.mode_set(mode='EDIT')
+        
+                for bone in edit_bones:
+                    if bone.get("is_socket"):
+                        continue
+        
+                    children = []
+                    for child in bone.children:
+                        if child.get("is_socket"):
+                            continue
+        
+                        children.append(child)
+        
+                    if len(children) == 0 and bone.parent is None:
+                        continue
+        
+                    target_length = bone.length
+                    if len(children) == 0:
+                        new_rot = Vector(bone.parent["reorient_direction"])
+                        new_rot.rotate(Quaternion(bone["orig_quat"]).conjugated())
+        
+                        target_rotation = make_axis_vector(new_rot)
+                    else:
+                        avg_child_pos = Vector()
+                        avg_child_length = 0
+                        for child in children:
+                            pos = Vector(child["orig_loc"])
+                            avg_child_pos += pos
+                            avg_child_length += pos.length
+        
+                        avg_child_pos /= len(children)
+                        avg_child_length /= len(children)
+        
+                        target_rotation = make_axis_vector(avg_child_pos)
+                        bone["reorient_direction"] = target_rotation
+        
+                        target_length = avg_child_length
+        
+                    post_quat = Vector((0, 1, 0)).rotation_difference(target_rotation)
+                    bone.matrix @= post_quat.to_matrix().to_4x4()
+                    bone.length = max(0.01, target_length)
+        
+                    post_quat.rotate(Quaternion(bone["orig_quat"]).conjugated())
+                    bone["post_quat"] = post_quat
+        
+        
+                bpy.ops.object.mode_set(mode='OBJECT')
                 
-                if not self.options.reorient_bones:
-                    edit_bone["post_quat"] = bone_rot
-
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            if has_geometry:
-
+            bpy.data.objects.remove(template_armature_object)
+            
+            for lod in created_lods:
+                armature_object = bpy.data.objects.new(lod.name + "_Skeleton", armature_data)
+                armature_object.show_in_front = True
+                return_object = armature_object
+            
+                if self.options.link:
+                    bpy.context.collection.objects.link(armature_object)
+                bpy.context.view_layer.objects.active = armature_object
+                armature_object.select_set(True)
+            
+                lod.parent = armature_object
+                
                 # armature modifier
-                armature_modifier = mesh_object.modifiers.new(armature_object.name, type='ARMATURE')
+                armature_modifier = lod.modifiers.new(armature_object.name, type='ARMATURE')
                 armature_modifier.show_expanded = False
                 armature_modifier.use_vertex_groups = True
                 armature_modifier.object = armature_object
-
+            
+                bpy.ops.object.mode_set(mode='POSE')
+                
                 # bone colors
                 for bone in armature_object.pose.bones:
-                    if mesh_object.vertex_groups.get(bone.name) is None:
+                    if lod.vertex_groups.get(bone.name) is None:
                         bone.color.palette = 'THEME14'
                         continue
-
+            
                     if len(bone.children) == 0:
                         bone.color.palette = 'THEME03'
-
-        # sockets
-        if self.options.import_sockets and len(data.sockets) > 0:
-            # create sockets
-            bpy.ops.object.mode_set(mode='EDIT')
-            socket_collection = armature_data.collections.new("Sockets")
-            for socket in data.sockets:
-                socket_bone = edit_bones.new(socket.name)
-                socket_collection.assign(socket_bone)
-                socket_bone["is_socket"] = True
-                parent_bone = get_case_insensitive(edit_bones, socket.parent_name)
-                if parent_bone is None:
-                    continue
-                socket_bone.parent = parent_bone
-                socket_bone.length = self.options.bone_length * self.options.scale_factor
-                socket_bone.matrix = parent_bone.matrix @ Matrix.Translation(socket.position) @ Quaternion((socket.rotation[3],socket.rotation[0],socket.rotation[1],socket.rotation[2])).to_matrix().to_4x4()  # xyzw -> wxyz
-
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-            # socket colors
-            for socket in data.sockets:
-                socket_bone = armature_object.pose.bones.get(socket.name)
-                if socket_bone is not None:
-                    socket_bone.color.palette = 'THEME05'
-
-        if len(data.bones) > 0 and self.options.reorient_bones:
-            bpy.ops.object.mode_set(mode='EDIT')
-
-            for bone in edit_bones:
-                if bone.get("is_socket"):
-                    continue
-
-                children = []
-                for child in bone.children:
-                    if child.get("is_socket"):
-                        continue
-
-                    children.append(child)
-
-                if len(children) == 0 and bone.parent is None:
-                    continue
-
-                target_length = bone.length
-                if len(children) == 0:
-                    new_rot = Vector(bone.parent["reorient_direction"])
-                    new_rot.rotate(Quaternion(bone["orig_quat"]).conjugated())
-
-                    target_rotation = make_axis_vector(new_rot)
-                else:
-                    avg_child_pos = Vector()
-                    avg_child_length = 0
-                    for child in children:
-                        pos = Vector(child["orig_loc"])
-                        avg_child_pos += pos
-                        avg_child_length += pos.length
-
-                    avg_child_pos /= len(children)
-                    avg_child_length /= len(children)
-
-                    target_rotation = make_axis_vector(avg_child_pos)
-                    bone["reorient_direction"] = target_rotation
-
-                    target_length = avg_child_length
-
-                post_quat = Vector((0, 1, 0)).rotation_difference(target_rotation)
-                bone.matrix @= post_quat.to_matrix().to_4x4()
-                bone.length = max(0.01, target_length)
-
-                post_quat.rotate(Quaternion(bone["orig_quat"]).conjugated())
-                bone["post_quat"] = post_quat
-
-
-            bpy.ops.object.mode_set(mode='OBJECT')
+                        
+                # socket colors
+                for socket in data.skeleton.sockets:
+                    socket_bone = armature_object.pose.bones.get(socket.name)
+                    if socket_bone is not None:
+                        socket_bone.color.palette = 'THEME05'
+                        
+                bpy.ops.object.mode_set(mode='OBJECT')
             
         # collision
-        if self.options.import_collision and len(data.collisions) > 0 and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
+        if self.options.import_collision and len(data.collisions) > 0:
             for index, collision in enumerate(data.collisions):
                 collision_name = index if collision.name == "None" else collision.name
                 collision_object_name = name + f"_Collision_{collision_name}"
@@ -764,8 +757,99 @@ class UEFormatImport:
 
         return action
 
+    def deserialize_model(self, ar: FArchiveReader):
+        data = UEModel()
+        while not ar.eof():
+            section_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+            
+            Log.info(f"Section: {section_name} | Count: {array_size} | Byte Size: {byte_size}")
+
+            if section_name == "LODS":
+                data.lods = []
+                for i in range(array_size):
+                    lod_name = ar.read_fstring()
+                    lod_size = ar.read_int()
+                    lod = UEModelLOD(ar.chunk(lod_size), lod_name, self.options.scale_factor)
+                    data.lods.append(lod)
+            elif section_name == "SKELETON":
+                Log.info(ar.data.tell())
+                data.skeleton = UEModelSkeleton(ar.chunk(byte_size), self.options.scale_factor)
+            elif section_name == "COLLISION":
+                data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
+            else:
+                Log.warn(f"Unknown Section Data: {section_name}")
+                ar.skip(byte_size)
+        return data
+
+    def deserialize_model_legacy(self, ar: FArchiveReader):
+        data = UEModel()
+        data.skeleton = UEModelSkeleton()
+        lod = UEModelLOD()
+        lod.name = "LOD0"
+        while not ar.eof():
+            header_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+    
+            pos = ar.data.tell()
+            if header_name == "VERTICES":
+                flattened = ar.read_float_vector(array_size * 3)
+                lod.vertices = (np.array(flattened) * self.options.scale_factor).reshape(array_size, 3)
+            elif header_name == "INDICES":
+                lod.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
+            elif header_name == "NORMALS":
+                if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
+                    flattened = np.array(ar.read_float_vector(array_size * 4)) # W XYZ # TODO: change to XYZ W
+                    lod.normals = flattened.reshape(-1,4)[:,1:]
+                else:
+                    flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
+                    lod.normals = flattened
+            elif header_name == "TANGENTS":
+                ar.skip(array_size * 3 * 3)
+                # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
+            elif header_name == "VERTEXCOLORS":
+                if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
+                    lod.colors = []
+                    for i in range(array_size):
+                        lod.colors.append(VertexColor.read(ar))
+                else:
+                    lod.colors = [VertexColor("COL0", (np.array(ar.read_byte_vector(array_size * 4)).reshape(array_size, 4) / 255).astype(np.float32))]
+            elif header_name == "TEXCOORDS":
+                lod.uvs = []
+                for i in range(array_size):
+                    count = ar.read_int()
+                    lod.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
+            elif header_name == "MATERIALS":
+                lod.materials = ar.read_array(array_size, lambda ar: Material(ar))
+            elif header_name == "WEIGHTS":
+                lod.weights = ar.read_array(array_size, lambda ar: Weight(ar))
+            elif header_name == "MORPHTARGETS":
+                lod.morphs = ar.read_array(array_size, lambda ar: MorphTarget(ar, self.options.scale_factor))
+            elif header_name == "BONES":
+                data.skeleton.bones = ar.read_array(array_size, lambda ar: Bone(ar, self.options.scale_factor))
+            elif header_name == "SOCKETS":
+                data.skeleton.sockets = ar.read_array(array_size, lambda ar: Socket(ar, self.options.scale_factor))
+            elif header_name == "COLLISION" and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
+                data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
+            else:
+                Log.warn(f"Unknown Data: {header_name}")
+                ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
+            
+        data.lods.append(lod)
+        
+        return data
+
 
 class UEModel:
+    lods = []
+    collisions = []
+    skeleton = None
+
+class UEModelLOD:
+    name = ""
     vertices = []
     indices = []
     normals = []
@@ -773,11 +857,75 @@ class UEModel:
     colors = []
     uvs = []
     materials = []
-    collisions = []
     morphs = []
     weights = []
+
+
+    def __init__(self, ar: FArchiveReader = None, name = "", scale = 1.0):
+        if ar is None:
+            return
+
+        self.name = name
+        while not ar.eof():
+            header_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+
+            pos = ar.data.tell()
+            if header_name == "VERTICES":
+                flattened = ar.read_float_vector(array_size * 3)
+                self.vertices = (np.array(flattened) * scale).reshape(array_size, 3)
+            elif header_name == "INDICES":
+                self.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
+            elif header_name == "NORMALS":
+                flattened = np.array(ar.read_float_vector(array_size * 4)) # W XYZ # TODO: change to XYZ W
+                self.normals = flattened.reshape(-1,4)[:,1:]
+            elif header_name == "TANGENTS":
+                ar.skip(array_size * 3 * 3)
+            elif header_name == "VERTEXCOLORS":
+                self.colors = []
+                for i in range(array_size):
+                    self.colors.append(VertexColor.read(ar))
+            elif header_name == "TEXCOORDS":
+                self.uvs = []
+                for i in range(array_size):
+                    count = ar.read_int()
+                    self.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
+            elif header_name == "MATERIALS":
+                self.materials = ar.read_array(array_size, lambda ar: Material(ar))
+            elif header_name == "WEIGHTS":
+                self.weights = ar.read_array(array_size, lambda ar: Weight(ar))
+            elif header_name == "MORPHTARGETS":
+                self.morphs = ar.read_array(array_size, lambda ar: MorphTarget(ar, scale))
+            else:
+                Log.warn(f"Unknown Mesh Data: {header_name}")
+                ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
+
+class UEModelSkeleton:
     bones = []
     sockets = []
+
+    def __init__(self, ar: FArchiveReader = None, scale = 1.0):
+        if ar is None:
+            return
+
+        while not ar.eof():
+            header_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+
+            Log.info(f"Sub-Section: {header_name} | Count: {array_size} | Byte Size: {byte_size}")
+
+            pos = ar.data.tell()
+            if header_name == "BONES":
+                self.bones = ar.read_array(array_size, lambda ar: Bone(ar, scale))
+            elif header_name == "SOCKETS":
+                self.sockets = ar.read_array(array_size, lambda ar: Socket(ar, scale))
+            else:
+                Log.warn(f"Unknown Skeleton Data: {header_name}")
+                ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
 
 class VertexColor:
     name = ""
