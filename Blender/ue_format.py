@@ -58,6 +58,7 @@ class UEFORMAT_PT_Panel(bpy.types.Panel):
         box.row().prop(bpy.context.scene.uf_settings, "import_collision")
         box.row().prop(bpy.context.scene.uf_settings, "import_morph_targets")
         box.row().prop(bpy.context.scene.uf_settings, "import_sockets")
+        box.row().prop(bpy.context.scene.uf_settings, "import_virtual_bones")
         box.row().prop(bpy.context.scene.uf_settings, "reorient_bones")
         box.row().prop(bpy.context.scene.uf_settings, "bone_length")
 
@@ -93,7 +94,8 @@ class UFImportUEModel(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
                                  import_collision=bpy.context.scene.uf_settings.import_collision,
                                  import_sockets=bpy.context.scene.uf_settings.import_sockets,
                                  import_morph_targets=bpy.context.scene.uf_settings.import_morph_targets,
-                                 import_lods=bpy.context.scene.uf_settings.import_lods)
+                                 import_lods=bpy.context.scene.uf_settings.import_lods,
+                                 import_virtual_bones=bpy.context.scene.uf_settings.import_virtual_bones)
         for file in self.files:
             UEFormatImport(options).import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
@@ -132,6 +134,7 @@ class UFSettings(bpy.types.PropertyGroup):
     import_collision: BoolProperty(name="Import Collision", default=False)
     import_morph_targets: BoolProperty(name="Import Morph Targets", default=True)
     import_sockets: BoolProperty(name="Import Sockets", default=True)
+    import_virtual_bones: BoolProperty(name="Import Virtual Bones", default=False)
     rotation_only: BoolProperty(name="Rotation Only", default=False)
 
 
@@ -186,7 +189,6 @@ class Oodle:
     lib = None
 
     def __init__(self):
-        print(self.user_oodle_path())
         if not os.path.exists(self.user_oodle_path()):
             self.download_dll()
 
@@ -390,6 +392,7 @@ class EUEFormatVersion(IntEnum):
     AddMultipleVertexColors = 2
     AddConvexCollisionGeom = 3
     LevelOfDetailFormatRestructure = 4
+    SerializeVirtualBones = 5
 
     VersionPlusOne = auto()
     LatestVersion = VersionPlusOne - 1
@@ -399,7 +402,7 @@ class UEFormatOptions:
 
 class UEModelOptions(UEFormatOptions):
 
-    def __init__(self, link=True, scale_factor=0.01, bone_length=4.0, reorient_bones=False, import_collision=False, import_sockets=True, import_morph_targets=True, import_lods=False):
+    def __init__(self, link=True, scale_factor=0.01, bone_length=4.0, reorient_bones=False, import_collision=False, import_sockets=True, import_morph_targets=True, import_lods=False, import_virtual_bones=False):
         self.scale_factor = scale_factor
         self.bone_length = bone_length
         self.reorient_bones = reorient_bones
@@ -408,6 +411,7 @@ class UEModelOptions(UEFormatOptions):
         self.import_sockets = import_sockets
         self.import_morph_targets = import_morph_targets
         self.import_lods = import_lods
+        self.import_virtual_bones = import_virtual_bones
 
 
 class UEAnimOptions(UEFormatOptions):
@@ -467,12 +471,14 @@ class UEFormatImport:
             elif identifier == ANIM_IDENTIFIER:
                 return self.import_ueanim_data(read_archive, object_name)
 
+    # TODO clean up code quality, esp in the skeleton department
     def import_uemodel_data(self, ar: FArchiveReader, name: str):
         if self.file_version >= EUEFormatVersion.LevelOfDetailFormatRestructure:
             data = self.deserialize_model(ar)
         else:
             data = self.deserialize_model_legacy(ar)
 
+        # meshes
         created_lods = []
         for index, lod in enumerate(data.lods):
             lod_name = f"{name}_{lod.name}"
@@ -548,7 +554,6 @@ class UEFormatImport:
             
             if not self.options.import_lods:
                 break
-
 
         # skeleton
         if data.skeleton is not None and (len(data.skeleton.bones) > 0 or (self.options.import_sockets and len(data.skeleton.sockets) > 0)):
@@ -654,8 +659,60 @@ class UEFormatImport:
         
         
                 bpy.ops.object.mode_set(mode='OBJECT')
-                
-            bpy.data.objects.remove(template_armature_object)
+
+            
+            if len(created_lods) > 0:
+                bpy.data.objects.remove(template_armature_object)
+            else:
+                template_armature_object.name = name
+                return_object = template_armature_object
+
+                # this is the same functionality as in unreal dont @ me
+                if self.options.import_virtual_bones:
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    virtual_bone_collection = armature_data.collections.new("Virtual Bones")
+                    edit_bones = armature_data.edit_bones
+                    for virtual in data.skeleton.virtual_bones:
+                        source_bone = edit_bones.get(virtual.source_name)
+                        if source_bone is None:
+                            continue
+                            
+                        virtual_bone = edit_bones.new(virtual.virtual_name)
+                        virtual_bone_collection.assign(virtual_bone)
+                        virtual_bone.head = source_bone.tail
+                        virtual_bone.tail = source_bone.head
+        
+                    bpy.ops.object.mode_set(mode='POSE')
+        
+                    for virtual in data.skeleton.virtual_bones:
+                        virtual_bone = template_armature_object.pose.bones.get(virtual.virtual_name)
+                        if virtual_bone is None:
+                            continue
+                            
+                        constraint = virtual_bone.constraints.new("IK")
+                        constraint.target = template_armature_object
+                        constraint.subtarget = virtual.target_name
+                        constraint.chain_count = 1
+                        virtual_bone.ik_stretch = 1
+        
+                    bpy.ops.object.mode_set(mode='OBJECT')
+
+                # bone colors
+                for bone in template_armature_object.pose.bones:
+                    if len(bone.children) == 0:
+                        bone.color.palette = 'THEME03'
+
+                # socket colors
+                for socket in data.skeleton.sockets:
+                    socket_bone = template_armature_object.pose.bones.get(socket.name)
+                    if socket_bone is not None:
+                        socket_bone.color.palette = 'THEME05'
+
+                # virtual bone colors
+                for virtual in data.skeleton.virtual_bones:
+                    virtual_bone = template_armature_object.pose.bones.get(virtual.virtual_name)
+                    if virtual_bone is not None:
+                        virtual_bone.color.palette = 'THEME11'
             
             for lod in created_lods:
                 armature_object = bpy.data.objects.new(lod.name + "_Skeleton", armature_data)
@@ -691,9 +748,15 @@ class UEFormatImport:
                     socket_bone = armature_object.pose.bones.get(socket.name)
                     if socket_bone is not None:
                         socket_bone.color.palette = 'THEME05'
+
+                # virtual bone colors
+                for virtual in data.skeleton.virtual_bones:
+                    virtual_bone = armature_object.pose.bones.get(virtual.virtual_name)
+                    if virtual_bone is not None:
+                        virtual_bone.color.palette = 'THEME11'
                         
                 bpy.ops.object.mode_set(mode='OBJECT')
-            
+
         # collision
         if self.options.import_collision and len(data.collisions) > 0:
             for index, collision in enumerate(data.collisions):
@@ -813,7 +876,7 @@ class UEFormatImport:
             elif section_name == "SKELETON":
                 data.skeleton = UEModelSkeleton(ar.chunk(byte_size), self.options.scale_factor)
             elif section_name == "COLLISION":
-                data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
+                data.collisions = ar.read_array(array_size, lambda ar: ConvexCollision(ar, self.options.scale_factor))
             else:
                 Log.warn(f"Unknown Section Data: {section_name}")
                 ar.skip(byte_size)
@@ -868,7 +931,7 @@ class UEFormatImport:
             elif header_name == "SOCKETS":
                 data.skeleton.sockets = ar.read_array(array_size, lambda ar: Socket(ar, self.options.scale_factor))
             elif header_name == "COLLISION" and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
-                data.collisions = ar.read_array(array_size, lambda ar: Collision(ar, self.options.scale_factor))
+                data.collisions = ar.read_array(array_size, lambda ar: ConvexCollision(ar, self.options.scale_factor))
             else:
                 Log.warn(f"Unknown Data: {header_name}")
                 ar.skip(byte_size)
@@ -883,6 +946,7 @@ class UEModel:
     lods = []
     collisions = []
     skeleton = None
+    #physics = None
 
 class UEModelLOD:
     name = ""
@@ -895,7 +959,6 @@ class UEModelLOD:
     materials = []
     morphs = []
     weights = []
-
 
     def __init__(self, ar: FArchiveReader = None, name = "", scale = 1.0):
         if ar is None:
@@ -941,6 +1004,7 @@ class UEModelLOD:
 class UEModelSkeleton:
     bones = []
     sockets = []
+    virtual_bones = []
 
     def __init__(self, ar: FArchiveReader = None, scale = 1.0):
         if ar is None:
@@ -956,10 +1020,128 @@ class UEModelSkeleton:
                 self.bones = ar.read_array(array_size, lambda ar: Bone(ar, scale))
             elif header_name == "SOCKETS":
                 self.sockets = ar.read_array(array_size, lambda ar: Socket(ar, scale))
+            elif header_name == "VIRTUALBONES":
+                self.virtual_bones = ar.read_array(array_size, lambda ar: VirtualBone(ar))
             else:
                 Log.warn(f"Unknown Skeleton Data: {header_name}")
                 ar.skip(byte_size)
             ar.data.seek(pos + byte_size, 0)
+
+'''class UEModelPhysics:
+    bodies = []
+
+    def __init__(self, ar: FArchiveReader, scale):
+
+        while not ar.eof():
+            header_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+
+            pos = ar.data.tell()
+            if header_name == "BODIES":
+                self.bodies = ar.read_array(array_size, lambda ar: BodySetup(ar, scale))
+            else:
+                Log.warn(f"Unknown Skeleton Data: {header_name}")
+                ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
+
+class EPhysicsType(IntEnum):
+    PhysType_Default = 0
+    PhysType_Kinematic = 1
+    PhysType_Simulated = 2
+
+
+class BodySetup:
+    bone_name = ""
+    physics_type = EPhysicsType.PhysType_Default
+    
+    sphere_elems = []
+    box_elems = []
+    capsule_elems = []
+    tapered_capsule_elems = []
+    convex_elems = []
+    
+    def __init__(self, ar: FArchiveReader, scale):
+        self.bone_name = ar.read_fstring()
+        self.physics_type = EPhysicsType(int.from_bytes(ar.read_byte(), byteorder="big"))
+        
+        self.sphere_elems = ar.read_bulk_array(lambda ar: SphereCollision(ar, scale))
+        self.box_elems = ar.read_bulk_array(lambda ar: BoxCollision(ar, scale))
+        self.capsule_elems = ar.read_bulk_array(lambda ar: CapsuleCollision(ar, scale))
+        self.tapered_capsule_elems = ar.read_bulk_array(lambda ar: TaperedCapsuleCollision(ar, scale))
+        self.convex_elems = ar.read_bulk_array(lambda ar: ConvexCollision(ar, scale))
+        
+class SphereCollision:
+    name = ""
+    center = []
+    radius = 0
+
+    def __init__(self, ar: FArchiveReader, scale):
+        self.name = ar.read_fstring()
+        self.center = [pos * scale for pos in ar.read_float_vector(3)]
+        self.radius = ar.read_float()
+
+class BoxCollision:
+    name = ""
+    center = []
+    rotation = []
+    x = 0
+    y = 0
+    z = 0
+
+    def __init__(self, ar: FArchiveReader, scale):
+        self.name = ar.read_fstring()
+        self.center = [pos * scale for pos in ar.read_float_vector(3)]
+        self.rotation = ar.read_float_vector(3)
+        self.x = ar.read_float()
+        self.y = ar.read_float()
+        self.z = ar.read_float()
+
+class CapsuleCollision:
+    name = ""
+    center = []
+    rotation = []
+    radius = 0
+    length = 0
+
+    def __init__(self, ar: FArchiveReader, scale):
+        self.name = ar.read_fstring()
+        self.center = [pos * scale for pos in ar.read_float_vector(3)]
+        self.rotation = ar.read_float_vector(3)
+        self.radius = ar.read_float()
+        self.length = ar.read_float()
+
+class TaperedCapsuleCollision:
+    name = ""
+    center = []
+    rotation = []
+    radius0 = 0
+    radius1 = 0
+    length = 0
+
+    def __init__(self, ar: FArchiveReader, scale):
+        self.name = ar.read_fstring()
+        self.center = [pos * scale for pos in ar.read_float_vector(3)]
+        self.rotation = ar.read_float_vector(3)
+        self.radius0 = ar.read_float()
+        self.radius1 = ar.read_float()
+        self.length = ar.read_float()'''
+
+class ConvexCollision:
+    name = ""
+    vertices = []
+    indices = []
+
+    def __init__(self, ar: FArchiveReader, scale):
+        self.name = ar.read_fstring()
+
+        vertices_count = ar.read_int()
+        vertices_flattened = ar.read_float_vector(vertices_count * 3)
+        self.vertices = (np.array(vertices_flattened) * scale).reshape(vertices_count, 3)
+
+        indices_count = ar.read_int()
+        self.indices = np.array(ar.read_int_vector(indices_count), dtype=np.int32).reshape(indices_count // 3, 3)
+
 
 class VertexColor:
     name = ""
@@ -986,21 +1168,6 @@ class Material:
         self.material_name = ar.read_fstring()
         self.first_index = ar.read_int()
         self.num_faces = ar.read_int()
-        
-class Collision:
-    name = ""
-    vertices = []
-    indices = []
-
-    def __init__(self, ar: FArchiveReader, scale):
-        self.name = ar.read_fstring()
-        
-        vertices_count = ar.read_int()
-        vertices_flattened = ar.read_float_vector(vertices_count * 3)
-        self.vertices = (np.array(vertices_flattened) * scale).reshape(vertices_count, 3)
-        
-        indices_count = ar.read_int()
-        self.indices = np.array(ar.read_int_vector(indices_count), dtype=np.int32).reshape(indices_count // 3, 3)
 
 
 class Bone:
@@ -1061,6 +1228,16 @@ class Socket:
         self.position = [pos * scale for pos in ar.read_float_vector(3)]
         self.rotation = ar.read_float_vector(4)
         self.scale = ar.read_float_vector(3)
+
+class VirtualBone:
+    source_name = ""
+    target_name = ""
+    virtual_name = ""
+
+    def __init__(self, ar: FArchiveReader):
+        self.source_name = ar.read_fstring()
+        self.target_name = ar.read_fstring()
+        self.virtual_name = ar.read_fstring()
 
 
 class UEAnim:
