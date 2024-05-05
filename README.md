@@ -12,6 +12,7 @@ A model and animation export format created for Unreal Engine game asset extract
 
 ## Features
 ### Model Data (.uemodel)
+- Embedded LOD Models (Level of Detail)
 - Vertices
 - Indices
 - Normals
@@ -23,7 +24,7 @@ A model and animation export format created for Unreal Engine game asset extract
 - Bones
 - Sockets
 - Morph Targets
-- Convex Collision Geometry
+- Collision Geometry (Convex Only)
 
 ### Animation Data (.ueanim)
 - Location Keys
@@ -35,7 +36,6 @@ A model and animation export format created for Unreal Engine game asset extract
 ### Model Data (.uemodel)
 - Physics Bodies (Skeletal Mesh)
 - Virtual Bones (Skeletal Mesh)
-- Embedded LODs (Skeletal + Static Mesh)
 
 ### Animation Data (.ueanim)
 - TBD
