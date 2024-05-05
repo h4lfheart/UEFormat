@@ -10,9 +10,29 @@ A model and animation export format created for Unreal Engine game asset extract
 - [Blender](https://github.com/halfuwu/UEFormat/tree/master/Blender)
 - [Unreal Engine 5.4+](https://github.com/halfuwu/UEFormat/tree/master/Unreal)
 
-## Features
+## Blender Features
 ### Model Data (.uemodel)
-- Embedded LOD Models (Level of Detail)
+- LOD Models (Level of Detail)
+- Vertices
+- Indices
+- Normals
+- Texture Coordinates
+- Vertex Colors
+- Materials
+- Weights
+- Bones
+- Sockets
+- Morph Targets
+- Collision Geometry (Convex Only)
+- Virtual Bones
+
+### Animation Data (.ueanim)
+- Location Keys
+- Rotation Keys
+- Scale Keys
+
+## Unreal Features
+### Model Data (.uemodel)
 - Vertices
 - Indices
 - Normals
@@ -22,20 +42,9 @@ A model and animation export format created for Unreal Engine game asset extract
 - Materials
 - Weights
 - Bones
-- Sockets
-- Morph Targets
-- Collision Geometry (Convex Only)
 
 ### Animation Data (.ueanim)
 - Location Keys
 - Rotation Keys
 - Scale Keys
-- Float Curve Keys
-
-## Future Features (TBD)
-### Model Data (.uemodel)
-- Physics Bodies (Skeletal Mesh)
-- Virtual Bones (Skeletal Mesh)
-
-### Animation Data (.ueanim)
-- TBD
+  
