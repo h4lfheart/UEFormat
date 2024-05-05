@@ -17,48 +17,6 @@ from mathutils import Vector, Matrix, Quaternion
 from ctypes import cdll, c_char_p, create_string_buffer
 
 
-class Oodle:
-    lib = None
-
-    def __init__(self):
-        print(self.user_oodle_path())
-        if not os.path.exists(self.user_oodle_path()):
-            self.download_dll()
-
-        self.lib = cdll.LoadLibrary(self.user_oodle_path())
-
-    def decompress(self, source, compressed_size, uncompressed_size):
-        uncompressed_buffer = create_string_buffer(uncompressed_size)
-        decoded_size = self.lib.OodleLZ_Decompress(c_char_p(source), compressed_size, uncompressed_buffer,
-                                                   uncompressed_size, 1, 0, 0, None, 0, None, None, None, 0, 3)
-        if decoded_size <= 0:
-            raise Exception(f"Oodle decompression failed with result {decoded_size}")
-
-        return uncompressed_buffer.raw
-
-    warframe_content_host = "https://content.warframe.com"
-    warframe_origin_host = "https://origin.warframe.com"
-    warframe_index_path = "/origin/50F7040A/index.txt.lzma"
-    warframe_index_url = warframe_origin_host + warframe_index_path
-    oodle_dll_name = "oo2core_9_win64.dll"
-
-    def download_dll(self):
-        index_response = requests.get(Oodle.warframe_index_url)
-        index_decompressed_data = lzma.decompress(index_response.content)
-        lines = index_decompressed_data.decode().splitlines()
-        dll_line: str = next(filter(lambda line: Oodle.oodle_dll_name in line, lines))
-        dll_url = Oodle.warframe_content_host + dll_line[:dll_line.index(',')]
-
-        dll_response = requests.get(dll_url)
-        dll_decompressed_data = lzma.decompress(dll_response.content)
-
-        with open(self.user_oodle_path(), 'xb') as dll_file:
-            dll_file.write(dll_decompressed_data)
-
-    def user_oodle_path(self):
-        return os.path.join(os.getcwd(), Oodle.oodle_dll_name)
-
-
 # ---------- ADDON ---------- #
 
 bl_info = {
@@ -96,6 +54,7 @@ class UEFORMAT_PT_Panel(bpy.types.Panel):
 
         box = layout.box()
         box.label(text="Model", icon="OUTLINER_OB_MESH")
+        box.row().prop(bpy.context.scene.uf_settings, "import_lods")
         box.row().prop(bpy.context.scene.uf_settings, "import_collision")
         box.row().prop(bpy.context.scene.uf_settings, "import_morph_targets")
         box.row().prop(bpy.context.scene.uf_settings, "import_sockets")
@@ -129,11 +88,12 @@ class UFImportUEModel(bpy.types.Operator, bpy_extras.io_utils.ImportHelper):
 
     def execute(self, context):
         options = UEModelOptions(scale_factor=bpy.context.scene.uf_settings.scale,
-                                bone_length=bpy.context.scene.uf_settings.bone_length,
-                                reorient_bones=bpy.context.scene.uf_settings.reorient_bones,
-                                import_collision=bpy.context.scene.uf_settings.import_collision,
-                                import_sockets=bpy.context.scene.uf_settings.import_sockets,
-                                import_morph_targets=bpy.context.scene.uf_settings.import_morph_targets)
+                                 bone_length=bpy.context.scene.uf_settings.bone_length,
+                                 reorient_bones=bpy.context.scene.uf_settings.reorient_bones,
+                                 import_collision=bpy.context.scene.uf_settings.import_collision,
+                                 import_sockets=bpy.context.scene.uf_settings.import_sockets,
+                                 import_morph_targets=bpy.context.scene.uf_settings.import_morph_targets,
+                                 import_lods=bpy.context.scene.uf_settings.import_lods)
         for file in self.files:
             UEFormatImport(options).import_file(os.path.join(self.directory, file.name))
         return {'FINISHED'}
@@ -168,6 +128,7 @@ class UFSettings(bpy.types.PropertyGroup):
     scale: FloatProperty(name="Scale", default=0.01, min=0.01)
     bone_length: FloatProperty(name="Bone Length", default=5, min=0.1)
     reorient_bones: BoolProperty(name="Reorient Bones", default=False)
+    import_lods: BoolProperty(name="Import Levels of Detail", default=False)
     import_collision: BoolProperty(name="Import Collision", default=False)
     import_morph_targets: BoolProperty(name="Import Morph Targets", default=True)
     import_sockets: BoolProperty(name="Import Sockets", default=True)
@@ -218,6 +179,49 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
+# ---------- OODLE ---------- #
+
+class Oodle:
+    lib = None
+
+    def __init__(self):
+        print(self.user_oodle_path())
+        if not os.path.exists(self.user_oodle_path()):
+            self.download_dll()
+
+        self.lib = cdll.LoadLibrary(self.user_oodle_path())
+
+    def decompress(self, source, compressed_size, uncompressed_size):
+        uncompressed_buffer = create_string_buffer(uncompressed_size)
+        decoded_size = self.lib.OodleLZ_Decompress(c_char_p(source), compressed_size, uncompressed_buffer,
+                                                   uncompressed_size, 1, 0, 0, None, 0, None, None, None, 0, 3)
+        if decoded_size <= 0:
+            raise Exception(f"Oodle decompression failed with result {decoded_size}")
+
+        return uncompressed_buffer.raw
+
+    warframe_content_host = "https://content.warframe.com"
+    warframe_origin_host = "https://origin.warframe.com"
+    warframe_index_path = "/origin/50F7040A/index.txt.lzma"
+    warframe_index_url = warframe_origin_host + warframe_index_path
+    oodle_dll_name = "oo2core_9_win64.dll"
+
+    def download_dll(self):
+        index_response = requests.get(Oodle.warframe_index_url)
+        index_decompressed_data = lzma.decompress(index_response.content)
+        lines = index_decompressed_data.decode().splitlines()
+        dll_line: str = next(filter(lambda line: Oodle.oodle_dll_name in line, lines))
+        dll_url = Oodle.warframe_content_host + dll_line[:dll_line.index(',')]
+
+        dll_response = requests.get(dll_url)
+        dll_decompressed_data = lzma.decompress(dll_response.content)
+
+        with open(self.user_oodle_path(), 'xb') as dll_file:
+            dll_file.write(dll_decompressed_data)
+
+    def user_oodle_path(self):
+        return os.path.join(os.getcwd(), Oodle.oodle_dll_name)
 
 
 # ---------- IMPORT CLASSES ---------- #
@@ -300,7 +304,6 @@ class Log:
         else:
             Log.error(f"Timer {name} does not exist")
 
-# TODO: optimize and clean up code
 class FArchiveReader:
     data = None
     size = 0
@@ -396,7 +399,7 @@ class UEFormatOptions:
 
 class UEModelOptions(UEFormatOptions):
 
-    def __init__(self, link=True, scale_factor=0.01, bone_length=4.0, reorient_bones=False, import_collision=False, import_sockets=True, import_morph_targets=True):
+    def __init__(self, link=True, scale_factor=0.01, bone_length=4.0, reorient_bones=False, import_collision=False, import_sockets=True, import_morph_targets=True, import_lods=False):
         self.scale_factor = scale_factor
         self.bone_length = bone_length
         self.reorient_bones = reorient_bones
@@ -404,6 +407,7 @@ class UEModelOptions(UEFormatOptions):
         self.import_collision = import_collision
         self.import_sockets = import_sockets
         self.import_morph_targets = import_morph_targets
+        self.import_lods = import_lods
 
 
 class UEAnimOptions(UEFormatOptions):
@@ -541,6 +545,9 @@ class UEFormatImport:
                         mesh_data.polygons[face_index].material_index = i
                         
             created_lods.append(mesh_object)
+            
+            if not self.options.import_lods:
+                break
 
 
         # skeleton
