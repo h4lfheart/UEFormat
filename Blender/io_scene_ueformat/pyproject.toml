@@ -1,5 +1,5 @@
 [project]
-name = "ueformat"
+name = "io_scene_ueformat"
 version = "0.0.0"
 
 [project.optional-dependencies]
