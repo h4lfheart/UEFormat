@@ -1,0 +1,12 @@
+{
+    "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.autoImportCompletions": false,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    }
+}
