@@ -5,8 +5,6 @@ import gzip
 import struct
 import numpy as np
 import zstandard as zstd
-import requests
-import lzma
 from enum import IntEnum, auto
 
 import bpy
@@ -14,8 +12,6 @@ import bpy_extras
 from bpy.props import StringProperty, BoolProperty, PointerProperty, FloatProperty, CollectionProperty
 from bpy.types import Scene
 from mathutils import Vector, Matrix, Quaternion
-from ctypes import cdll, c_char_p, create_string_buffer
-
 
 # ---------- ADDON ---------- #
 
@@ -182,48 +178,6 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
-# ---------- OODLE ---------- #
-
-class Oodle:
-    lib = None
-
-    def __init__(self):
-        if not os.path.exists(self.user_oodle_path()):
-            self.download_dll()
-
-        self.lib = cdll.LoadLibrary(self.user_oodle_path())
-
-    def decompress(self, source, compressed_size, uncompressed_size):
-        uncompressed_buffer = create_string_buffer(uncompressed_size)
-        decoded_size = self.lib.OodleLZ_Decompress(c_char_p(source), compressed_size, uncompressed_buffer,
-                                                   uncompressed_size, 1, 0, 0, None, 0, None, None, None, 0, 3)
-        if decoded_size <= 0:
-            raise Exception(f"Oodle decompression failed with result {decoded_size}")
-
-        return uncompressed_buffer.raw
-
-    warframe_content_host = "https://content.warframe.com"
-    warframe_origin_host = "https://origin.warframe.com"
-    warframe_index_path = "/origin/50F7040A/index.txt.lzma"
-    warframe_index_url = warframe_origin_host + warframe_index_path
-    oodle_dll_name = "oo2core_9_win64.dll"
-
-    def download_dll(self):
-        index_response = requests.get(Oodle.warframe_index_url)
-        index_decompressed_data = lzma.decompress(index_response.content)
-        lines = index_decompressed_data.decode().splitlines()
-        dll_line: str = next(filter(lambda line: Oodle.oodle_dll_name in line, lines))
-        dll_url = Oodle.warframe_content_host + dll_line[:dll_line.index(',')]
-
-        dll_response = requests.get(dll_url)
-        dll_decompressed_data = lzma.decompress(dll_response.content)
-
-        with open(self.user_oodle_path(), 'xb') as dll_file:
-            dll_file.write(dll_decompressed_data)
-
-    def user_oodle_path(self):
-        return os.path.join(os.getcwd(), Oodle.oodle_dll_name)
 
 
 # ---------- IMPORT CLASSES ---------- #
@@ -459,8 +413,6 @@ class UEFormatImport:
                     read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
                 elif compression_type == "ZSTD":
                     read_archive = FArchiveReader(zstd_decompressor.decompress(ar.read_to_end(), uncompressed_size))
-                elif compression_type == "Oodle":
-                    read_archive = FArchiveReader(oodle_decompressor.decompress(ar.read_to_end(), compressed_size, uncompressed_size))
                 else:
                     Log.error(f"Unknown Compression Type: {compression_type}")
                     return
