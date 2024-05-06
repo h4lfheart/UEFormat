@@ -1,6 +1,7 @@
 [project]
 name = "io_scene_ueformat"
 version = "0.0.0"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev-b4-1 = [  # Python 3.11
@@ -18,3 +19,15 @@ dev-b4-0 = [  # Python 3.10
 
 [tool.pyright]
 reportInvalidTypeForm = "none"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "ANN101",
+    "ANN102",
+    "D",
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["io_scene_ueformat"]
