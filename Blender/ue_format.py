@@ -1,17 +1,23 @@
+import gzip
 import io
 import os
-import time
-import gzip
 import struct
-import numpy as np
-import zstandard as zstd
+import time
 from enum import IntEnum, auto
 
 import bpy
 import bpy_extras
-from bpy.props import StringProperty, BoolProperty, PointerProperty, FloatProperty, CollectionProperty
+import numpy as np
+import zstandard as zstd
+from bpy.props import (
+    BoolProperty,
+    CollectionProperty,
+    FloatProperty,
+    PointerProperty,
+    StringProperty,
+)
 from bpy.types import Scene
-from mathutils import Vector, Matrix, Quaternion
+from mathutils import Matrix, Quaternion, Vector
 
 # ---------- ADDON ---------- #
 
