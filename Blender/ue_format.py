@@ -147,9 +147,6 @@ def register():
     zstd_decompressor = zstd.ZstdDecompressor()
 
 
-    global oodle_decompressor
-    oodle_decompressor = Oodle()
-
     # if used as script decomresser can be initialized like this
     # from . import ue_format
     # ue_format.zstd_decompressor = zstd.ZstdDecompressor()
@@ -171,9 +168,6 @@ def unregister():
 
     global zstd_decompressor
     del zstd_decompressor
-    
-    global oodle_decompressor
-    del oodle_decompressor
 
 
 if __name__ == "__main__":
