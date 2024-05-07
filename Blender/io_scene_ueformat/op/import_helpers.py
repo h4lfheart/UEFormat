@@ -10,7 +10,7 @@ from io_scene_ueformat.op.panels import UEFORMAT_PT_Panel
 from io_scene_ueformat.options import UEAnimOptions, UEFormatOptions, UEModelOptions
 from io_scene_ueformat.typing import UFormatContext
 
-T = TypeVar("T", bound="UEFormatOptions")
+T = TypeVar("T", bound=UEFormatOptions)
 
 
 class UFImportBase(Operator, ImportHelper, Generic[T]):
