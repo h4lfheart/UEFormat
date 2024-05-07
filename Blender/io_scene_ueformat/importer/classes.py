@@ -1,6 +1,10 @@
 import io
 import struct
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from enum import IntEnum, auto
+from types import TracebackType
+from typing import BinaryIO, TypeVar
 
 import numpy as np
 from mathutils import Quaternion, Vector
@@ -8,80 +12,84 @@ from mathutils import Quaternion, Vector
 from io_scene_ueformat.importer.utils import bytes_to_str
 from io_scene_ueformat.logging import Log
 
+R = TypeVar("R")
+
 
 class FArchiveReader:
-    data = None
-    size = 0
-
-    def __init__(self, data):
-        self.data = io.BytesIO(data)
+    def __init__(self, data: bytes) -> None:
+        self.data: BinaryIO = io.BytesIO(data)
         self.size = len(data)
         self.data.seek(0)
 
-    def __enter__(self):
-        # self.size = len(self.data.read())
+    def __enter__(self) -> "FArchiveReader":
         self.data.seek(0)
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self.data.close()
 
-    def eof(self):
+    def eof(self) -> bool:
         return self.data.tell() >= self.size
 
-    def read(self, size: int):
+    def read(self, size: int) -> bytes:
         return self.data.read(size)
 
-    def read_to_end(self):
+    def read_to_end(self) -> bytes:
         return self.data.read(self.size - self.data.tell())
 
-    def read_bool(self):
+    def read_bool(self) -> bool:
         return struct.unpack("?", self.data.read(1))[0]
 
-    def read_string(self, size: int):
+    def read_string(self, size: int) -> str:
         string = self.data.read(size)
         return bytes_to_str(string)
 
-    def read_fstring(self):
+    def read_fstring(self) -> str:
         (size,) = struct.unpack("i", self.data.read(4))
         string = self.data.read(size)
         return bytes_to_str(string)
 
-    def read_int(self):
+    def read_int(self) -> int:
         return struct.unpack("i", self.data.read(4))[0]
 
-    def read_int_vector(self, size: int):
+    def read_int_vector(self, size: int) -> tuple[int, ...]:
         return struct.unpack(str(size) + "I", self.data.read(size * 4))
 
-    def read_short(self):
+    def read_short(self) -> int:
         return struct.unpack("h", self.data.read(2))[0]
 
-    def read_byte(self):
+    def read_byte(self) -> bytes:
         return struct.unpack("c", self.data.read(1))[0]
 
-    def read_float(self):
+    def read_float(self) -> float:
         return struct.unpack("f", self.data.read(4))[0]
 
-    def read_float_vector(self, size: int):
+    def read_float_vector(self, size: int) -> tuple[float, ...]:
         return struct.unpack(str(size) + "f", self.data.read(size * 4))
 
-    def read_byte_vector(self, size: int):
+    def read_byte_vector(self, size: int) -> tuple[int, ...]:
         return struct.unpack(str(size) + "B", self.data.read(size))
 
-    def skip(self, size: int):
+    def skip(self, size: int) -> None:
         self.data.seek(size, 1)
 
-    def read_bulk_array(self, predicate):
+    def read_bulk_array(self, predicate: Callable[["FArchiveReader"], R]) -> list[R]:
         count = self.read_int()
         return self.read_array(count, predicate)
 
-    def read_array(self, count, predicate):
-        array = []
-        for counter in range(count):
-            array.append(predicate(self))
-        return array
+    def read_array(
+        self,
+        count: int,
+        predicate: Callable[["FArchiveReader"], R],
+    ) -> list[R]:
+        return [predicate(self) for _ in range(count)]
 
-    def chunk(self, size):
+    def chunk(self, size: int) -> "FArchiveReader":
         return FArchiveReader(self.read(size))
 
 
@@ -102,10 +110,11 @@ class EUEFormatVersion(IntEnum):
     LatestVersion = VersionPlusOne - 1
 
 
+@dataclass(slots=True)
 class UEModel:
-    lods = []
-    collisions = []
-    skeleton = None
+    lods: list = field(default_factory=list)
+    collisions: list = field(default_factory=list)
+    skeleton: "UEModelSkeleton | None" = None
     # physics = None
 
 
@@ -389,7 +398,7 @@ class MorphTarget:
     name = ""
     deltas = []
 
-    def __init__(self, ar: FArchiveReader, scale):
+    def __init__(self, ar: FArchiveReader, scale: float):
         self.name = ar.read_fstring()
 
         self.deltas = ar.read_bulk_array(lambda ar: MorphTargetData(ar, scale))
@@ -400,7 +409,7 @@ class MorphTargetData:
     normals = []
     vertex_index = -1
 
-    def __init__(self, ar: FArchiveReader, scale):
+    def __init__(self, ar: FArchiveReader, scale: float):
         self.position = [pos * scale for pos in ar.read_float_vector(3)]
         self.normals = ar.read_float_vector(3)
         self.vertex_index = ar.read_int()

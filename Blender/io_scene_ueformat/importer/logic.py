@@ -3,6 +3,7 @@ from pathlib import Path
 
 import bpy
 import numpy as np
+from bpy.types import Action, Object
 from mathutils import Matrix, Quaternion, Vector
 
 from io_scene_ueformat.importer.classes import (
@@ -37,14 +38,19 @@ class UEFormatImport:
     def __init__(self, options: UEFormatOptions) -> None:
         self.options = options
 
-    def import_file(self, path: str | Path):
+    def import_file(self, path: str | Path) -> None | Object | Action:
+        path = path if isinstance(path, Path) else Path(path)
+
         Log.time_start(f"Import {path}")
-        with open(path, "rb") as file:
+
+        with path.open("rb") as file:
             obj = self.import_data(file.read())
+
         Log.time_end(f"Import {path}")
+
         return obj
 
-    def import_data(self, data):
+    def import_data(self, data: bytes) -> None | Object | Action:
         with FArchiveReader(data) as ar:
             magic = ar.read_string(len(MAGIC))
             if magic != MAGIC:
