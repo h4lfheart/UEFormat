@@ -28,7 +28,7 @@ class UFImportBase(Operator, ImportHelper, Generic[T]):
 
         directory = Path(self.directory)
         for file in self.files:
-            file: Path
+            file: OperatorFileListElement
             UEFormatImport(options).import_file(directory / file.name)
 
         return {"FINISHED"}

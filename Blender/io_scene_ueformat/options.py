@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from io_scene_ueformat.op.settings import UFSettings
 
 
-@dataclass
+@dataclass(slots=True)
 class UEFormatOptions:
     link: bool = True
     scale_factor: float = 0.01
@@ -19,7 +19,7 @@ class UEFormatOptions:
         return cls(**settings.__dict__)
 
 
-@dataclass
+@dataclass(slots=True)
 class UEModelOptions(UEFormatOptions):
     bone_length: float = 4.0
     reorient_bones: bool = False
@@ -30,7 +30,7 @@ class UEModelOptions(UEFormatOptions):
     import_virtual_bones: bool = False
 
 
-@dataclass
+@dataclass(slots=True)
 class UEAnimOptions(UEFormatOptions):
     rotation_only: bool = False
     override_skeleton: Armature | None = None

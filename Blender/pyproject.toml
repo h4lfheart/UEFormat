@@ -20,13 +20,18 @@ dev-b4-0 = [  # Python 3.10
 [tool.pyright]
 reportInvalidTypeForm = "none"
 
+[tool.ruff]
+line-length = 120
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
     "ANN101",
     "ANN102",
+    "COM812",
     "D",
     "E501",
+    "ISC001",
     "PYI034", # unavailable on Blender 4.0
 ]
 

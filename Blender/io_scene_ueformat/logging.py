@@ -39,7 +39,7 @@ class Log:
 
         start_time = cls.timers.pop(name, None)
 
-        if start_time is not None:
+        if start_time is None:
+            cls.error(f"Timer {name} does not exist")
+        else:
             cls.info(f"{name} took {time.time() - start_time} seconds")
-
-        cls.error(f"Timer {name} does not exist")

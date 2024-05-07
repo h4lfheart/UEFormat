@@ -1,4 +1,8 @@
+from collections.abc import Collection
+from typing import cast
+
 import bpy
+from bpy.types import PoseBone, bpy_prop_collection
 from mathutils import Vector
 
 
@@ -23,10 +27,15 @@ def make_axis_vector(vec_in: Vector) -> Vector:
     return vec_out
 
 
-def get_case_insensitive(source, string: str):
-    for item in source:
-        if item.name.lower() == string.lower():
+def get_case_insensitive(source: bpy_prop_collection, string: str) -> PoseBone | None:
+    string = string.lower()
+    source_ = cast(Collection[PoseBone], source)
+
+    for item in source_:
+        if item.name.lower() == string:
             return item
+
+    return None
 
 
 def get_active_armature():
