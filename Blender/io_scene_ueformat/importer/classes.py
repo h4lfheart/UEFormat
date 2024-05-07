@@ -1,16 +1,22 @@
+from __future__ import annotations
+
 import io
 import struct
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import IntEnum, auto
-from types import TracebackType
-from typing import BinaryIO, TypeVar
+from typing import TYPE_CHECKING, BinaryIO, TypeVar
 
 import numpy as np
+import numpy.typing as npt
 from mathutils import Quaternion, Vector
 
 from io_scene_ueformat.importer.utils import bytes_to_str
 from io_scene_ueformat.logging import Log
+from io_scene_ueformat.options import UEFormatOptions
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import TracebackType
 
 R = TypeVar("R")
 
@@ -21,7 +27,7 @@ class FArchiveReader:
         self.size = len(data)
         self.data.seek(0)
 
-    def __enter__(self) -> "FArchiveReader":
+    def __enter__(self) -> FArchiveReader:
         self.data.seek(0)
         return self
 
@@ -78,18 +84,18 @@ class FArchiveReader:
     def skip(self, size: int) -> None:
         self.data.seek(size, 1)
 
-    def read_bulk_array(self, predicate: Callable[["FArchiveReader"], R]) -> list[R]:
+    def read_bulk_array(self, predicate: Callable[[FArchiveReader], R]) -> list[R]:
         count = self.read_int()
         return self.read_array(count, predicate)
 
     def read_array(
         self,
         count: int,
-        predicate: Callable[["FArchiveReader"], R],
+        predicate: Callable[[FArchiveReader], R],
     ) -> list[R]:
         return [predicate(self) for _ in range(count)]
 
-    def chunk(self, size: int) -> "FArchiveReader":
+    def chunk(self, size: int) -> FArchiveReader:
         return FArchiveReader(self.read(size))
 
 
@@ -114,32 +120,74 @@ class EUEFormatVersion(IntEnum):
 class UEModel:
     lods: list = field(default_factory=list)
     collisions: list = field(default_factory=list)
-    skeleton: "UEModelSkeleton | None" = None
-    # physics = None
+    skeleton: UEModelSkeleton | None = None
+    # physics = None  # noqa: ERA001
+
+    @classmethod
+    def from_archive(
+        cls,
+        ar: FArchiveReader,
+        options: UEFormatOptions | None = None,
+    ) -> UEModel:
+        options = options or UEFormatOptions()
+        data = cls()
+
+        while not ar.eof():
+            section_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+
+            match section_name:
+                case "LODS":
+                    data.lods.extend(
+                        UEModelLOD.from_archive(
+                            ar,
+                            options,
+                        )
+                        for _ in range(array_size)
+                    )
+
+                case "SKELETON":
+                    data.skeleton = UEModelSkeleton(
+                        ar.chunk(byte_size),
+                        options.scale_factor,
+                    )
+                case "COLLISION":
+                    data.collisions = ar.read_array(
+                        array_size,
+                        lambda ar: ConvexCollision(ar, options.scale_factor),
+                    )
+                case _:
+                    Log.warn(f"Unknown Section Data: {section_name}")
+                    ar.skip(byte_size)
+        return data
 
 
+@dataclass(slots=True)
 class UEModelLOD:
-    name = ""
-    vertices = []
-    indices = []
-    normals = []
-    tangents = []
-    colors = []
-    uvs = []
-    materials = []
-    morphs = []
-    weights = []
+    name: str = ""
+    vertices: list = field(default_factory=list)
+    indices: list = field(default_factory=list)
+    normals: list = field(default_factory=list)
+    tangents: list = field(default_factory=list)
+    colors: list = field(default_factory=list)
+    uvs: list = field(default_factory=list)
+    materials: list = field(default_factory=list)
+    morphs: list = field(default_factory=list)
+    weights: list = field(default_factory=list)
 
-    def __init__(
-        self,
-        ar: FArchiveReader | None = None,
-        name: str = "",
-        scale: float = 1.0,
-    ) -> None:
-        if ar is None:
-            return
+    @classmethod
+    def from_archive(
+        cls,
+        ar: FArchiveReader,
+        options: UEFormatOptions | None = None,
+    ) -> UEModelLOD:
+        options = options or UEFormatOptions()
+        data = cls(name=ar.read_fstring())
 
-        self.name = name
+        lod_size = ar.read_int()
+        ar = ar.chunk(lod_size)
+
         while not ar.eof():
             header_name = ar.read_fstring()
             array_size = ar.read_int()
@@ -148,36 +196,41 @@ class UEModelLOD:
             pos = ar.data.tell()
             if header_name == "VERTICES":
                 flattened = ar.read_float_vector(array_size * 3)
-                self.vertices = (np.array(flattened) * scale).reshape(array_size, 3)
+                data.vertices = (np.array(flattened) * options.scale_factor).reshape(
+                    array_size,
+                    3,
+                )
             elif header_name == "INDICES":
-                self.indices = np.array(
+                data.indices = np.array(
                     ar.read_int_vector(array_size),
                     dtype=np.int32,
                 ).reshape(array_size // 3, 3)
             elif header_name == "NORMALS":
-                flattened = np.array(
-                    ar.read_float_vector(array_size * 4),
-                )  # W XYZ # TODO: change to XYZ W
-                self.normals = flattened.reshape(-1, 4)[:, 1:]
+                # W XYZ # TODO: change to XYZ W
+                flattened = np.array(ar.read_float_vector(array_size * 4))
+                data.normals = flattened.reshape(-1, 4)[:, 1:]
             elif header_name == "TANGENTS":
                 ar.skip(array_size * 3 * 3)
             elif header_name == "VERTEXCOLORS":
-                self.colors = []
+                data.colors = []
                 for i in range(array_size):
-                    self.colors.append(VertexColor.read(ar))
+                    data.colors.append(VertexColor.from_archive(ar))
             elif header_name == "TEXCOORDS":
-                self.uvs = []
+                data.uvs = []
                 for i in range(array_size):
                     count = ar.read_int()
-                    self.uvs.append(
+                    data.uvs.append(
                         np.array(ar.read_float_vector(count * 2)).reshape(count, 2),
                     )
             elif header_name == "MATERIALS":
-                self.materials = ar.read_array(array_size, lambda ar: Material(ar))
+                data.materials = ar.read_array(
+                    array_size,
+                    lambda ar: Material.from_archive(ar),
+                )
             elif header_name == "WEIGHTS":
-                self.weights = ar.read_array(array_size, lambda ar: Weight(ar))
+                data.weights = ar.read_array(array_size, lambda ar: Weight(ar))
             elif header_name == "MORPHTARGETS":
-                self.morphs = ar.read_array(
+                data.morphs = ar.read_array(
                     array_size,
                     lambda ar: MorphTarget(ar, scale),
                 )
@@ -185,6 +238,8 @@ class UEModelLOD:
                 Log.warn(f"Unknown Mesh Data: {header_name}")
                 ar.skip(byte_size)
             ar.data.seek(pos + byte_size, 0)
+
+        return data
 
 
 class UEModelSkeleton:
@@ -340,16 +395,13 @@ class ConvexCollision:
         ).reshape(indices_count // 3, 3)
 
 
+@dataclass(slots=True)
 class VertexColor:
-    name = ""
-    data = []
-
-    def __init__(self, name, data):
-        self.name = name
-        self.data = data
+    name: str
+    data: npt.NDArray[np.float32]
 
     @classmethod
-    def read(cls, ar: FArchiveReader):
+    def from_archive(cls, ar: FArchiveReader) -> VertexColor:
         name = ar.read_fstring()
         count = ar.read_int()
         data = (
@@ -359,15 +411,19 @@ class VertexColor:
         return cls(name, data)
 
 
+@dataclass(slots=True)
 class Material:
-    material_name = ""
-    first_index = -1
-    num_faces = -1
+    material_name: str
+    first_index: int
+    num_faces: int
 
-    def __init__(self, ar: FArchiveReader):
-        self.material_name = ar.read_fstring()
-        self.first_index = ar.read_int()
-        self.num_faces = ar.read_int()
+    @classmethod
+    def from_archive(cls, ar: FArchiveReader) -> Material:
+        return cls(
+            material_name=ar.read_fstring(),
+            first_index=ar.read_int(),
+            num_faces=ar.read_int(),
+        )
 
 
 class Bone:

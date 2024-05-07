@@ -27,6 +27,7 @@ ignore = [
     "ANN102",
     "D",
     "E501",
+    "PYI034", # unavailable on Blender 4.0
 ]
 
 [tool.ruff.lint.isort]

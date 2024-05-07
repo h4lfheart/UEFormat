@@ -96,12 +96,13 @@ class UEFormatImport:
             elif identifier == ANIM_IDENTIFIER:
                 return self.import_ueanim_data(read_archive, object_name)
 
-    # TODO clean up code quality, esp in the skeleton department
-    def import_uemodel_data(self, ar: FArchiveReader, name: str):
-        assert isinstance(self.options, UEModelOptions)
+    # TODO: clean up code quality, esp in the skeleton department  # noqa: TD002, FIX002, TD003
+    def import_uemodel_data(self, ar: FArchiveReader, name: str) -> Object:
+        assert isinstance(self.options, UEModelOptions)  # noqa: S101
 
+        data: UEModel
         if self.file_version >= EUEFormatVersion.LevelOfDetailFormatRestructure:
-            data = self.deserialize_model(ar)
+            data = UEModel.from_archive(ar, self.options)
         else:
             data = self.deserialize_model_legacy(ar)
 
@@ -573,40 +574,7 @@ class UEFormatImport:
 
         return action
 
-    def deserialize_model(self, ar: FArchiveReader):
-        data = UEModel()
-        while not ar.eof():
-            section_name = ar.read_fstring()
-            array_size = ar.read_int()
-            byte_size = ar.read_int()
-
-            if section_name == "LODS":
-                data.lods = []
-                for i in range(array_size):
-                    lod_name = ar.read_fstring()
-                    lod_size = ar.read_int()
-                    lod = UEModelLOD(
-                        ar.chunk(lod_size),
-                        lod_name,
-                        self.options.scale_factor,
-                    )
-                    data.lods.append(lod)
-            elif section_name == "SKELETON":
-                data.skeleton = UEModelSkeleton(
-                    ar.chunk(byte_size),
-                    self.options.scale_factor,
-                )
-            elif section_name == "COLLISION":
-                data.collisions = ar.read_array(
-                    array_size,
-                    lambda ar: ConvexCollision(ar, self.options.scale_factor),
-                )
-            else:
-                Log.warn(f"Unknown Section Data: {section_name}")
-                ar.skip(byte_size)
-        return data
-
-    def deserialize_model_legacy(self, ar: FArchiveReader):
+    def deserialize_model_legacy(self, ar: FArchiveReader) -> UEModel:
         data = UEModel()
         data.skeleton = UEModelSkeleton()
         lod = UEModelLOD()
@@ -646,7 +614,7 @@ class UEFormatImport:
                 if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
                     lod.colors = []
                     for i in range(array_size):
-                        lod.colors.append(VertexColor.read(ar))
+                        lod.colors.append(VertexColor.from_archive(ar))
                 else:
                     lod.colors = [
                         VertexColor(
@@ -668,7 +636,10 @@ class UEFormatImport:
                         np.array(ar.read_float_vector(count * 2)).reshape(count, 2),
                     )
             elif header_name == "MATERIALS":
-                lod.materials = ar.read_array(array_size, lambda ar: Material(ar))
+                lod.materials = ar.read_array(
+                    array_size,
+                    lambda ar: Material.from_archive(ar),
+                )
             elif header_name == "WEIGHTS":
                 lod.weights = ar.read_array(array_size, lambda ar: Weight(ar))
             elif header_name == "MORPHTARGETS":
