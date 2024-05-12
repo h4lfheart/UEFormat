@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -16,7 +17,10 @@ class UEFormatOptions:
 
     @classmethod
     def from_settings(cls, settings: UFSettings) -> UEFormatOptions:
-        return cls(**settings.__dict__)
+        return cls(**{
+            k: v for k, v in settings.get_props().items()
+            if k in inspect.signature(cls).parameters
+        })
 
 
 @dataclass(slots=True)
