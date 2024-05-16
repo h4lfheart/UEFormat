@@ -1,6 +1,7 @@
+from typing import Any
+
 from bpy.props import BoolProperty, FloatProperty
 from bpy.types import PropertyGroup
-from typing import Any
 
 
 class UFSettings(PropertyGroup):
@@ -15,9 +16,4 @@ class UFSettings(PropertyGroup):
     rotation_only: BoolProperty(name="Rotation Only", default=False)
 
     def get_props(self) -> dict[str, Any]:
-        props = {}
-
-        for key in self.__annotations__.keys():
-            props[key] = getattr(self, key)
-
-        return props
+        return {key: getattr(self, key) for key in self.__annotations__}
