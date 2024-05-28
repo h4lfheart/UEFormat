@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "charliermarsh.ruff",
+        "jacqueslucke.blender-development",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "oderwat.indent-rainbow",
+        "usernamehw.errorlens"
+    ]
+}
