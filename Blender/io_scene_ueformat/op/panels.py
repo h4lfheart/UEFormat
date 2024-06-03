@@ -25,7 +25,7 @@ class UEFORMAT_PT_Panel(Panel):  # noqa: N801
     def draw_general_options(obj: Panel | Operator, settings: UFSettings) -> None:
         box = obj.layout.box()
         box.label(text="General", icon="SETTINGS")
-        box.row().prop(settings, "scale")
+        box.row().prop(settings, "scale_factor")
 
     @staticmethod
     def draw_model_options(
