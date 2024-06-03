@@ -5,7 +5,7 @@ from bpy.types import PropertyGroup
 
 
 class UFSettings(PropertyGroup):
-    scale: FloatProperty(name="Scale", default=0.01, min=0.01)
+    scale_factor: FloatProperty(name="Scale", default=0.01, min=0.01)
     bone_length: FloatProperty(name="Bone Length", default=4.0, min=0.1)
     reorient_bones: BoolProperty(name="Reorient Bones", default=False)
     import_lods: BoolProperty(name="Import Levels of Detail", default=False)
