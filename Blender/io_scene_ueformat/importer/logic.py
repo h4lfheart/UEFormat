@@ -530,10 +530,7 @@ class UEFormatImport:
 
                 q = post_quat.copy()
 
-                if bone.parent is None:
-                    q.rotate(p_quat.conjugated())
-                else:
-                    q.rotate(p_quat)
+                q.rotate(p_quat)
 
                 quat.rotate(q.conjugated())
 
