@@ -1,1 +1,0 @@
-#include "C:/Users/Marcel/Documents/3D/Unreal Projects/Main/UUTesting/Plugins/UEFormat/Source/UEFormat/Public/UEFormat.h"

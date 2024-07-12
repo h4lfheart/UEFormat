@@ -3,24 +3,21 @@
 	{
 		"Module.UEFormat.cpp.obj": [
 			"BPFL.gen.cpp.obj",
-			"UAnimImportOptions.gen.cpp.obj",
-			"UEAnimFactory.gen.cpp.obj",
-			"UEAnimImportOptions.gen.cpp.obj",
+			"UEFAnimFactory.gen.cpp.obj",
+			"UEFAnimImportOptions.gen.cpp.obj",
+			"UEFModelFactory.gen.cpp.obj",
 			"UEFormat.init.gen.cpp.obj",
-			"UEModelFactory.gen.cpp.obj",
-			"USkelMeshImportOptions.gen.cpp.obj",
+			"UEFSkelMeshImportOptions.gen.cpp.obj",
 			"BPFL.cpp.obj",
-			"UEAnimFactory.cpp.obj",
-			"UEModelFactory.cpp.obj",
-			"UEAnimReader.cpp.obj",
-			"UEModelReader.cpp.obj",
+			"UEFAnimFactory.cpp.obj",
+			"UEFModelFactory.cpp.obj",
+			"UEFAnimReader.cpp.obj",
+			"UEFModelReader.cpp.obj",
 			"UEFormat.cpp.obj",
-			"UAnimImportOptions.cpp.obj",
-			"UAnimWidget.cpp.obj",
-			"USkelMeshImportOptions.cpp.obj",
-			"USkelMeshWidget.cpp.obj",
-			"UEAnimImportOptions.cpp.obj",
-			"UEAnimWidget.cpp.obj"
+			"UEFAnimImportOptions.cpp.obj",
+			"UEFAnimWidget.cpp.obj",
+			"UEFSkelMeshImportOptions.cpp.obj",
+			"UEFSkelMeshWidget.cpp.obj"
 		]
 	}
 }

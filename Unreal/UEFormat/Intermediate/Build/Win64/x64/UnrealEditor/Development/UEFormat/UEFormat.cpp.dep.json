@@ -1,12 +1,12 @@
 {
     "Version": "1.2",
     "Data": {
-        "Source": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\private\\ueformat.cpp",
+        "Source": "c:\\users\\marcel\\documents\\3d\\unreal projects\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\private\\ueformat.cpp",
         "ProvidedModule": "",
-        "PCH": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\intermediate\\build\\win64\\x64\\uutestingeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
+        "PCH": "c:\\users\\marcel\\documents\\3d\\unreal projects\\universalumaptesting\\intermediate\\build\\win64\\x64\\universalumaptestingeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.h.pch",
         "Includes": [
-            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\ueformat\\definitions.ueformat.h",
-            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\uutesting\\plugins\\ueformat\\source\\ueformat\\public\\ueformat.h"
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\universalumaptesting\\plugins\\ueformat\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\ueformat\\definitions.ueformat.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\public\\ueformat.h"
         ],
         "ImportedModules": [],
         "ImportedHeaderUnits": []
