@@ -44,7 +44,11 @@ public class UEFormat : ModuleRules
                 "Core",
                 "MeshDescription",
                 "StaticMeshDescription",
-                "SkeletalMeshModelingTools"
+                "SkeletalMeshModelingTools",
+
+                //BPFL
+                "Json",
+                "JsonUtilities",
                 // ... add other public dependencies that you statically link with here ...
             }
         );

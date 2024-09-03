@@ -87,60 +87,57 @@ UObject* UEFAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 		FinalRotKeys.SetNum(Data.NumFrames);
 		FinalScaleKeys.SetNum(Data.NumFrames);
 
-		FVector3f PrevPos = FVector3f::OneVector;
+		FVector3f PrevPos = FVector3f::ZeroVector;
 		FQuat4f PrevRot = FQuat4f::Identity;
 		FVector3f PrevScale = FVector3f::OneVector;
 
+		int PosIndex = 0, RotIndex = 0, ScaleIndex = 0;
 		for (auto j = 0; j < Data.NumFrames; j++)
 		{
-			for (auto k = 0; k < PosKeys.Num(); k++)
+			//position keys
+			if (PosIndex < PosKeys.Num() && PosKeys[PosIndex].Frame == j)
 			{
-				auto Frame = PosKeys[k].Frame;
-				if (Frame == j)
-				{
-					FinalPosKeys[j] = PosKeys[k].VectorValue;
-					PrevPos = PosKeys[k].VectorValue;
-				}
-				else
-				{
-					FinalPosKeys[j] = PrevPos;
-				}
+				//fix export dodo
+				PosKeys[PosIndex].VectorValue.Y = -PosKeys[PosIndex].VectorValue.Y;
+        
+				FinalPosKeys[j] = PosKeys[PosIndex].VectorValue;
+				PrevPos = PosKeys[PosIndex].VectorValue;
+				PosIndex++;
 			}
-			for (auto k = 0; k < RotKeys.Num(); k++)
+			else
+				FinalPosKeys[j] = PrevPos;
+			
+			//rotation keys
+			if (RotIndex < RotKeys.Num() && RotKeys[RotIndex].Frame == j)
 			{
-				auto Frame = RotKeys[k].Frame;
-				if (Frame == j)
-				{
-					FinalRotKeys[j] = RotKeys[k].QuatValue;
-					PrevRot = RotKeys[k].QuatValue;
-				}
-				else
-				{
-					FinalRotKeys[j] = PrevRot;
-				}
+				//fix export dodo
+				RotKeys[RotIndex].QuatValue.Y = -RotKeys[RotIndex].QuatValue.Y;
+				RotKeys[RotIndex].QuatValue.W = -RotKeys[RotIndex].QuatValue.W;
+        
+				FinalRotKeys[j] = RotKeys[RotIndex].QuatValue;
+				PrevRot = RotKeys[RotIndex].QuatValue;
+				RotIndex++;
 			}
-			for (auto k = 0; k < ScaleKeys.Num(); k++)
+			else
+				FinalRotKeys[j] = PrevRot;
+
+			//scale keys
+			if (ScaleIndex < ScaleKeys.Num() && ScaleKeys[ScaleIndex].Frame == j)
 			{
-				auto Frame = ScaleKeys[k].Frame;
-				if (Frame == j)
-				{
-					FinalScaleKeys[j] = ScaleKeys[k].VectorValue;
-					PrevScale = ScaleKeys[k].VectorValue;
-				}
-				else
-				{
-					FinalScaleKeys[j] = PrevScale;
-				}
+				FinalScaleKeys[j] = ScaleKeys[ScaleIndex].VectorValue;
+				PrevScale = ScaleKeys[ScaleIndex].VectorValue;
+				ScaleIndex++;
 			}
+			else
+				FinalScaleKeys[j] = PrevScale;
 		}
+
 		Controller.AddBoneCurve(BoneName);
 		Controller.SetBoneTrackKeys(BoneName, FinalPosKeys, FinalRotKeys, FinalScaleKeys);
 	}
 	
 	if (!bImportAll)
-	{
 		SettingsImporter->bInitialized = false;
-	}
 
 	AnimSequence->GetController().NotifyPopulated();
 	AnimSequence->GetController().CloseBracket();

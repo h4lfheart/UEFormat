@@ -24,7 +24,8 @@ UEFModelFactory::UEFModelFactory( const FObjectInitializer& ObjectInitializer )
 UObject* UEFModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName Name, EObjectFlags Flags, const FString& Filename, const TCHAR* Params, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	UEFModelReader Data = UEFModelReader(Filename);
-	if (!Data.Read())
+	//empty mesh
+	if (!Data.Read() || Data.LODs.Num() == 0)
 		return nullptr;
 	
 	if (Data.Skeleton.Bones.Num() > 0) //SkelMesh
