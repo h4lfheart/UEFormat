@@ -49,6 +49,7 @@ public class UEFormat : ModuleRules
                 //BPFL
                 "Json",
                 "JsonUtilities",
+              //  "DeveloperSettings"
                 // ... add other public dependencies that you statically link with here ...
             }
         );

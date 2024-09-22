@@ -45,6 +45,9 @@ public:
 	FReply OnImport();
 
 	FReply OnCancel();
+
+	void OnCreateMaterialsChanged(ECheckBoxState NewState);
+	ECheckBoxState IsCreateMaterialsChecked() const;
 private:
 	UEFSkelMeshImportOptionDlgResponse	UserDlgResponse;
 	FReply HandleImport();

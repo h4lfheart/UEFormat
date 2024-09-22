@@ -27,4 +27,6 @@ class UEFORMAT_API UEFModelFactory : public UFactory
 
 	USkeleton* CreateSkeleton(FString Name, UPackage* ParentPackage, EObjectFlags Flags, FSkeletonData& Data, FReferenceSkeleton& RefSkeleton, FSkeletalMeshImportData&
 	                          SkeletalMeshImportData);
+
+	UMaterial* CreateAsset(FString Name, UPackage* Parent, EObjectFlags Flags);
 };

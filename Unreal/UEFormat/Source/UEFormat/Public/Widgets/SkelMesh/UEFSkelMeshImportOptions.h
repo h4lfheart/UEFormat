@@ -13,4 +13,7 @@ public:
 	UPROPERTY( EditAnywhere, Category = "Import Settings")
 	TObjectPtr<USkeleton> Skeleton;
 	bool bInitialized;
+
+	UPROPERTY(Category = ImportOptions, EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Create Materials"))
+	bool bCreateMaterials;
 };

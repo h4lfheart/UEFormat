@@ -1,6 +1,9 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "Factories/UEFModelFactory.h"
+
+#include <UEFormatSettings.h>
+
 #include "AssetToolsModule.h"
 #include "StaticMeshAttributes.h"
 #include "Engine/SkeletalMesh.h"
@@ -56,6 +59,9 @@ UObject* UEFModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FNam
 }
 
 UStaticMesh* UEFModelFactory::CreateStaticMesh(FLODData& Data, FName Name, UObject* Parent, EObjectFlags Flags) {
+
+	UE_LOG(LogTemp, Log, TEXT("Start of 'CreateStaticMesh'"));
+
     UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Parent, Name, Flags);
 
     FMeshDescription MeshDesc;
@@ -106,6 +112,15 @@ UStaticMesh* UEFModelFactory::CreateStaticMesh(FLODData& Data, FName Name, UObje
         for (auto u = 0; u < Data.TextureCoordinates.Num(); u++)
             VertexInstanceUVs.Set(VertexInstanceID, u, Data.TextureCoordinates[u][index]);
     }
+
+	UUEFormatSettings* Settings = GetMutableDefault<UUEFormatSettings>();
+
+	if(Settings == nullptr) {
+		UE_LOG(LogTemp, Error, TEXT("Failed to get settings (static mesh)"));
+		return StaticMesh;
+	}
+
+	bool createMaterials = Settings->bCreateMaterials;
 	
     for (auto [MatIndex, MatName, FirstIndex, NumFaces] : Data.Materials) {
         FPolygonGroupID PolygonGroup = MeshDesc.CreatePolygonGroup();
@@ -117,10 +132,24 @@ UStaticMesh* UEFModelFactory::CreateStaticMesh(FLODData& Data, FName Name, UObje
         }
         Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroup] = MatName.c_str();
 
-        FStaticMaterial StaticMat = FStaticMaterial();
-        StaticMat.MaterialSlotName = MatName.c_str();
-        StaticMat.ImportedMaterialSlotName = MatName.c_str();
-        StaticMesh->GetStaticMaterials().Add(StaticMat);
+    	if(createMaterials) {
+    		UMaterial* mat = CreateAsset(MatName.c_str(), StaticMesh->GetPackage(), Flags);
+    		if(mat == nullptr) {
+    			UE_LOG(LogTemp, Error, TEXT("Failed to create material"));
+    			continue;
+    		}
+    	
+    		FStaticMaterial StaticMat = FStaticMaterial(mat);
+    		StaticMat.MaterialSlotName = MatName.c_str();
+    		StaticMat.ImportedMaterialSlotName = MatName.c_str();
+    		StaticMesh->GetStaticMaterials().Add(StaticMat);
+    	}
+    	else {
+    		FStaticMaterial StaticMat = FStaticMaterial();
+    		StaticMat.MaterialSlotName = MatName.c_str();
+    		StaticMat.ImportedMaterialSlotName = MatName.c_str();
+    		StaticMesh->GetStaticMaterials().Add(StaticMat);
+    	}
     }
 	
     UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
@@ -132,6 +161,9 @@ UStaticMesh* UEFModelFactory::CreateStaticMesh(FLODData& Data, FName Name, UObje
 
 USkeletalMesh* UEFModelFactory::CreateSkeletalMeshFromStatic(FString Name, FSkeletonData& SkeletonData, FLODData& Data, UStaticMesh* Mesh, EObjectFlags Flags)
 {
+
+	UE_LOG(LogTemp, Log, TEXT("Start of 'CreateSkeletalMeshFromStatic'"));
+
 	FReferenceSkeleton RefSkeleton;
 	FSkeletalMeshImportData SkelMeshImportData;
 
@@ -156,6 +188,9 @@ USkeletalMesh* UEFModelFactory::CreateSkeletalMeshFromStatic(FString Name, FSkel
 		Influence.Weight = Weight.WeightAmount;
 		Influences.Add(Influence);
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("Test Log from 'CreateSkeletalMeshFromStatic'"));
+
 	SkelMeshImportData.Influences = Influences;
 	SkeletalMesh->SaveLODImportedData(0, SkelMeshImportData);
 
@@ -173,11 +208,49 @@ USkeletalMesh* UEFModelFactory::CreateSkeletalMeshFromStatic(FString Name, FSkel
 	Skeleton->PostEditChange();
 	FAssetRegistryModule::AssetCreated(Skeleton);
 
+	UE_LOG(LogTemp, Log, TEXT("Adding materials..."));
+
+	SkeletalMesh->GetMaterials().Empty();
+
+	UUEFormatSettings* Settings = GetMutableDefault<UUEFormatSettings>();
+
+	if(Settings == nullptr) {
+		UE_LOG(LogTemp, Error, TEXT("Failed to get settings"));
+		return SkeletalMesh;
+	}
+	
+	bool createMaterials = Settings->bCreateMaterials;
+
+	UE_LOG(LogTemp, Log, TEXT("Should Create Materials: %d"), createMaterials);
+
+	if(createMaterials) {
+		for (auto [MatIndex, MatName, FirstIndex, NumFaces] : Data.Materials)
+		{
+			UMaterial* material = UEFModelFactory::CreateAsset(MatName.c_str(), SkeletalMesh->GetPackage(), Flags);
+		
+			if (material == nullptr) {
+				UE_LOG(LogTemp, Error, TEXT("Failed to create material"));
+				continue;
+			}
+
+			FSkeletalMaterial* fsm = new FSkeletalMaterial(material);
+			fsm->MaterialSlotName = MatName.c_str();
+			fsm->ImportedMaterialSlotName = MatName.c_str();
+			SkeletalMesh->GetMaterials().Insert(*fsm, MatIndex);
+
+			FString mn = MatName.c_str();
+			UE_LOG(LogTemp, Log, TEXT("Material: %s"), *mn);
+		}
+	}
+
 	return SkeletalMesh;
 }
 
 USkeleton* UEFModelFactory::CreateSkeleton(FString Name, UPackage* ParentPackage, EObjectFlags Flags, FSkeletonData& Data, FReferenceSkeleton& RefSkeleton, FSkeletalMeshImportData& SkeletalMeshImportData)
 {
+
+	UE_LOG(LogTemp, Log, TEXT("Start of 'CreateSkeleton'"));
+
 	FString SkeletonName = Name + "_Skeleton";
 	auto SkeletonPackage = CreatePackage(*FPaths::Combine(FPaths::GetPath(ParentPackage->GetPathName()), SkeletonName));
 	USkeleton* Skeleton = NewObject<USkeleton>(SkeletonPackage, FName(*SkeletonName), Flags);
@@ -213,4 +286,18 @@ USkeleton* UEFModelFactory::CreateSkeleton(FString Name, UPackage* ParentPackage
 		RefSkeletonModifier.Add(BoneInfo, FTransform(Bone.BonePos.Transform));
 	}
 	return Skeleton;
+}
+
+UMaterial* UEFModelFactory::CreateAsset(FString Name, UPackage* Parent, EObjectFlags Flags) {
+	const auto package = CreatePackage(*FPaths::Combine(FPaths::GetPath(Parent->GetPathName() + "_Materials/"), Name));
+
+	UMaterial* asset = LoadObject<UMaterial>(package, *Name);
+	if (!asset) {
+		asset = NewObject<UMaterial>(package, UMaterial::StaticClass(), FName(*Name), Flags);
+		asset->PostEditChange();
+		FAssetRegistryModule::AssetCreated(asset);
+		asset->MarkPackageDirty();
+	}
+
+	return asset;
 }
