@@ -39,6 +39,18 @@ void UEFSkelMeshWidget::Construct(const FArguments& InArgs)
 			+ SHorizontalBox::Slot()
 		]
 		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(2)
+		[
+			SNew(SCheckBox)
+			.OnCheckStateChanged(this, &UEFSkelMeshWidget::OnCreateMaterialsChanged)
+			.IsChecked(this, &UEFSkelMeshWidget::IsCreateMaterialsChecked)
+			.Content()
+			[
+				SNew(STextBlock).Text(FText::FromString(TEXT("Create Materials")))
+			]
+		]
 
 	+ SVerticalBox::Slot()
 		.AutoHeight()
@@ -115,4 +127,23 @@ FReply UEFSkelMeshWidget::HandleImport()
 	}
 	return FReply::Handled();
 }
+
+// Add these methods to the UEFSkelMeshWidget class
+void UEFSkelMeshWidget::OnCreateMaterialsChanged(ECheckBoxState NewState)
+{
+	if (WidgetWindow.IsValid())
+	{
+		Stun->bCreateMaterials = (NewState == ECheckBoxState::Checked);
+	}
+}
+
+ECheckBoxState UEFSkelMeshWidget::IsCreateMaterialsChecked() const
+{
+	if (WidgetWindow.IsValid() && Stun->bCreateMaterials)
+	{
+		return ECheckBoxState::Checked;
+	}
+	return ECheckBoxState::Unchecked;
+}
+
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
