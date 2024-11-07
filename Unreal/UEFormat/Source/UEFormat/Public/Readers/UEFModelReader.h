@@ -4,25 +4,24 @@
 #include "Containers/Array.h"
 
 template<typename T>
-void ReadArray(std::ifstream& Ar, int ArraySize, TArray<T>& Data) {
-    Data.SetNum(ArraySize);
-    for (auto i = 0; i < ArraySize; i++) {
-        Ar.read(reinterpret_cast<char*>(&Data[i]), sizeof(T));
-    }
-}
-
-template<typename T>
 T ReadData(std::ifstream& Ar) {
     T Data;
     Ar.read(reinterpret_cast<char*>(&Data), sizeof(T));
+
     return Data;
 }
-
-FQuat4f ReadQuat(std::ifstream& Ar);
 
 std::string ReadString(std::ifstream& Ar, int32 Size);
 
 std::string ReadFString(std::ifstream& Ar);
+
+template<typename T>
+T ReadBufferData(const char* DataArray, int& Offset) {
+    T Data;
+    std::memcpy(&Data, &DataArray[Offset], sizeof(T));
+    Offset += sizeof(T);
+    return Data;
+}
 
 template<typename T>
 void ReadBufferArray(const char* DataArray, int& Offset, int ArraySize, TArray<T>& Data) {
@@ -31,14 +30,6 @@ void ReadBufferArray(const char* DataArray, int& Offset, int ArraySize, TArray<T
         std::memcpy(&Data[i], &DataArray[Offset], sizeof(T));
         Offset += sizeof(T);
     }
-}
-
-template<typename T>
-T ReadBufferData(const char* DataArray, int& Offset) {
-    T Data;
-    std::memcpy(&Data, &DataArray[Offset], sizeof(T));
-    Offset += sizeof(T);
-    return Data;
 }
 
 FQuat4f ReadBufferQuat(const char* DataArray, int& Offset);

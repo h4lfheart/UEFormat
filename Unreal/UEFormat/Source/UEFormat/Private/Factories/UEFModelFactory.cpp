@@ -1,216 +1,252 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #include "Factories/UEFModelFactory.h"
-#include "AssetToolsModule.h"
-#include "StaticMeshAttributes.h"
-#include "Engine/SkeletalMesh.h"
-#include "Engine/SkinnedAssetCommon.h"
-#include "Rendering/SkeletalMeshLODImporterData.h"
-#include "SkeletalMeshModelingToolsMeshConverter.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/StaticMesh.h"
-#include "Widgets/SkelMesh/UEFSkelMeshWidget.h"
 
-UEFModelFactory::UEFModelFactory( const FObjectInitializer& ObjectInitializer )
-	: Super(ObjectInitializer)
+#include "SkeletalMeshAttributes.h"
+#include "StaticMeshAttributes.h"
+
+#include "Engine/SkeletalMesh.h"
+#include "Engine/StaticMesh.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
+
+UEFModelFactory::UEFModelFactory(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	Formats.Add(TEXT("uemodel; UEMODEL Mesh File"));
-	SupportedClass = UStaticMesh::StaticClass();
+	Formats.Add(TEXT("uemodel; UEModel Mesh File"));
+	SupportedClass = UObject::StaticClass();
 	bCreateNew = false;
 	bEditorImport = true;
-	SettingsImporter = CreateDefaultSubobject<UEFSkelMeshImportOptions>(TEXT("Skeletal Mesh Options"));
 }
 
 UObject* UEFModelFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName Name, EObjectFlags Flags, const FString& Filename, const TCHAR* Params, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
 	UEFModelReader Data = UEFModelReader(Filename);
+
 	//empty mesh
 	if (!Data.Read() || Data.LODs.Num() == 0)
 		return nullptr;
-	
-	if (Data.Skeleton.Bones.Num() > 0) //SkelMesh
-		Name = "TEMP";
-	UStaticMesh* StaticMesh = CreateStaticMesh(Data.LODs[0], Name, Parent, Flags);
-	
-	if(Data.LODs.Num() > 1) //has extra LODs
+
+	//skeletal mesh
+	if(Data.Skeleton.Bones.Num() > 0)
+		return CreateSkeletalMesh(Data, Name, Parent, Flags);
+
+	//static mesh
+	return CreateStaticMesh(Data, Name, Parent, Flags);
+}
+
+UStaticMesh* UEFModelFactory::CreateStaticMesh(UEFModelReader& Data, FName Name, UObject* Parent, EObjectFlags Flags)
+{
+	UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Parent, Name, Flags);
+
+	for(int i = 0; i < Data.LODs.Num(); i++)
 	{
-		for(int i = 1; i < Data.LODs.Num(); i++)
-		{
-			UStaticMesh* LODStaticMesh = CreateStaticMesh(Data.LODs[i], "LOD_" + i, Parent, Flags);
-			LODStaticMesh->PostEditChange();
-			StaticMesh->SetCustomLOD(LODStaticMesh, i, "LOD" + i);
-		}
+		StaticMesh->AddSourceModel(); //important!
+
+		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(i);
+		FillStaticMeshMeshAttributes(*MeshDescription, Data.LODs[i]);
+		StaticMesh->CommitMeshDescription(i);
+		StaticMesh->GetSourceModel(i).BuildSettings.bGenerateLightmapUVs = false;
 	}
-	
-	if (Data.Skeleton.Bones.Num() > 0)
-	{
-		USkeletalMesh* SkeletalMesh = CreateSkeletalMeshFromStatic(Data.Header.ObjectName.c_str(), Data.Skeleton, Data.LODs[0], StaticMesh, Flags);
-		StaticMesh->RemoveFromRoot();
-		StaticMesh->MarkAsGarbage();
-		return SkeletalMesh;
+
+	for (auto [MatIndex, MatName, FirstIndex, NumFaces] : Data.LODs[0].Materials) {
+		FStaticMaterial StaticMat = FStaticMaterial();
+		StaticMat.MaterialSlotName = MatName.c_str();
+		StaticMat.ImportedMaterialSlotName = MatName.c_str();
+		StaticMesh->GetStaticMaterials().Add(StaticMat);
 	}
-	
-	FAssetRegistryModule::AssetCreated(StaticMesh);
+
+	StaticMesh->SetLightMapCoordinateIndex(Data.LODs[0].TextureCoordinates.Num() -1);
 	StaticMesh->PostEditChange();
+	FAssetRegistryModule::AssetCreated(StaticMesh);
 	return StaticMesh;
 }
 
-UStaticMesh* UEFModelFactory::CreateStaticMesh(FLODData& Data, FName Name, UObject* Parent, EObjectFlags Flags) {
-    UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Parent, Name, Flags);
-
-    FMeshDescription MeshDesc;
+void UEFModelFactory::FillStaticMeshAttributes(FMeshDescription& MeshDesc, FLODData& Data)
+{
     FStaticMeshAttributes Attributes(MeshDesc);
     Attributes.Register();
-	
-    // Reserve space
-    MeshDesc.ReserveNewVertices(Data.Vertices.Num());
-    MeshDesc.ReserveNewVertexInstances(Data.Vertices.Num());
-    MeshDesc.ReserveNewPolygons(Data.Indices.Num() / 3);
-    MeshDesc.ReserveNewPolygonGroups(Data.Materials.Num());
-    MeshDesc.SetNumUVChannels(Data.TextureCoordinates.Num());
 
-	TArray<FVertexInstanceID> VertexIDs;
-    TArray<FVertexInstanceID> VertexInstanceIDs;
-    const auto VertexPositions = Attributes.GetVertexPositions();
-    const auto VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-    const auto VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
-    const auto VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-    const auto VertexInstanceColors = Attributes.GetVertexInstanceColors();
-    const auto VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
-    VertexInstanceUVs.SetNumChannels(Data.TextureCoordinates.Num());
+    const int NumVertices = Data.Vertices.Num();
+	const int NumUVChannels = Data.TextureCoordinates.Num();
+	const int NumTriangles = Data.Indices.Num() / 3;
+	const int NumPolyGroups = Data.Materials.Num();
 
+	MeshDesc.ReserveNewVertices(NumVertices);
+	MeshDesc.ReserveNewVertexInstances(NumVertices);
+	MeshDesc.ReserveNewTriangles(NumTriangles);
+	MeshDesc.ReserveNewPolygonGroups(NumPolyGroups);
 
-	TMap<int32, FVertexID> VertexIndexMap; //Store unique vertices
-    for (auto i = 0; i < Data.Indices.Num(); i++) {
-    	int index = Data.Indices[i];
+	MeshDesc.SetNumUVChannels(NumUVChannels);
+	MeshDesc.VertexInstanceAttributes().SetAttributeChannelCount(MeshAttribute::VertexInstance::TextureCoordinate, NumUVChannels);
+	for (int UVChannelIndex = 0; UVChannelIndex < NumUVChannels; ++UVChannelIndex)
+		MeshDesc.ReserveNewUVs(NumVertices, UVChannelIndex);
 
-    	FVertexID VertexID;
-    	if (!VertexIndexMap.Contains(index)) {
-    		VertexID = MeshDesc.CreateVertex();
-    		VertexPositions.Set(VertexID, FVector3f(Data.Vertices[index].X, -Data.Vertices[index].Y, Data.Vertices[index].Z));
-    		VertexIndexMap.Add(index, VertexID);
-    	} else
-    		VertexID = VertexIndexMap[index];
-    	
-        FVertexInstanceID VertexInstanceID = MeshDesc.CreateVertexInstance(VertexID);
-        VertexInstanceIDs.Add(VertexInstanceID);
-    	
-        if (Data.Normals.Num() > 0) {
-            VertexInstanceBinormalSigns.Set(VertexInstanceID, Data.Normals[index].X);
-            VertexInstanceNormals.Set(VertexInstanceID, FVector3f(Data.Normals[index].Y, -Data.Normals[index].Z, Data.Normals[index].W));
-        }
-        if (Data.Tangents.Num() > 0)
-            VertexInstanceTangents.Set(VertexInstanceID, FVector3f(Data.Tangents[index].X, -Data.Tangents[index].Y, Data.Tangents[index].Z));
-        if (Data.VertexColors.Num() > 0)
-            VertexInstanceColors.Set(VertexInstanceID, FVector4f(Data.VertexColors[0].Data[index]));
-        for (auto u = 0; u < Data.TextureCoordinates.Num(); u++)
-            VertexInstanceUVs.Set(VertexInstanceID, u, Data.TextureCoordinates[u][index]);
-    }
-	
-    for (auto [MatIndex, MatName, FirstIndex, NumFaces] : Data.Materials) {
-        FPolygonGroupID PolygonGroup = MeshDesc.CreatePolygonGroup();
-        for (auto i = FirstIndex; i < FirstIndex + (NumFaces * 3); i += 3) {
-            FVertexInstanceID& VI0 = VertexInstanceIDs[i];
-            FVertexInstanceID& VI1 = VertexInstanceIDs[i + 1];
-            FVertexInstanceID& VI2 = VertexInstanceIDs[i + 2];
-            MeshDesc.CreatePolygon(PolygonGroup, { VI0, VI1, VI2 });
-        }
-        Attributes.GetPolygonGroupMaterialSlotNames()[PolygonGroup] = MatName.c_str();
+	TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	TPolygonGroupAttributesRef<FName> PolygonGroupMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
 
-        FStaticMaterial StaticMat = FStaticMaterial();
-        StaticMat.MaterialSlotName = MatName.c_str();
-        StaticMat.ImportedMaterialSlotName = MatName.c_str();
-        StaticMesh->GetStaticMaterials().Add(StaticMat);
-    }
-	
-    UStaticMesh::FBuildMeshDescriptionsParams BuildParams;
-    StaticMesh->PostEditChange();
-    StaticMesh->BuildFromMeshDescriptions({ &MeshDesc }, BuildParams);
+	for (int InVertIndex = 0; InVertIndex < NumVertices; ++InVertIndex)
+	{
+		const FVertexID VertexID(InVertIndex);
+		const FVertexInstanceID VertexInstanceID(InVertIndex);
 
-    return StaticMesh;
+		//TODO: deduplicate vertex positions?
+		MeshDesc.CreateVertexWithID(VertexID);
+		MeshDesc.CreateVertexInstanceWithID(VertexInstanceID, VertexID);
+
+		//invert y
+		const FVector3f Position = FVector3f(Data.Vertices[InVertIndex].X, -Data.Vertices[InVertIndex].Y, Data.Vertices[InVertIndex].Z);
+		const FVector3f Tangent = FVector3f(Data.Tangents[InVertIndex].X, -Data.Tangents[InVertIndex].Y, Data.Tangents[InVertIndex].Z);
+		const FVector3f Normal = FVector3f(Data.Normals[InVertIndex].Y, -Data.Normals[InVertIndex].Z, Data.Normals[InVertIndex].W);
+		const float BinormalSign = Data.Normals[InVertIndex].X;
+		const FColor Color = Data.VertexColors.IsValidIndex(0) && Data.VertexColors[0].Data.IsValidIndex(InVertIndex) ? Data.VertexColors[0].Data[InVertIndex] : FColor::White; //first vertex color layer
+
+		VertexPositions.Set(VertexID, Position);
+		VertexInstanceNormals.Set(VertexInstanceID, Normal);
+		VertexInstanceTangents.Set(VertexInstanceID, Tangent);
+		VertexInstanceBinormalSigns.Set(VertexInstanceID, BinormalSign);
+		VertexInstanceColors.Set(VertexInstanceID, FVector4f(FLinearColor(Color)));
+
+		for (int UVChannelIndex = 0; UVChannelIndex < NumUVChannels; ++UVChannelIndex)
+			VertexInstanceUVs.Set(VertexInstanceID, UVChannelIndex, Data.TextureCoordinates[UVChannelIndex][InVertIndex]);
+	}
+
+	for (auto [MatIndex, Name, FirstIndex, NumFaces] : Data.Materials)
+	{
+		const FPolygonGroupID PolygonGroupID = MeshDesc.CreatePolygonGroup();
+		PolygonGroupMaterialSlotNames.Set(PolygonGroupID, Name.c_str());
+
+		for (int TriIndex = 0; TriIndex < NumFaces; ++TriIndex)
+		{
+			const FVertexInstanceID TriVertInstanceIDs[] = {
+				FVertexInstanceID(Data.Indices[FirstIndex + TriIndex * 3 + 0]),
+				FVertexInstanceID(Data.Indices[FirstIndex + TriIndex * 3 + 1]),
+				FVertexInstanceID(Data.Indices[FirstIndex + TriIndex * 3 + 2])
+			};
+			//MeshDesc.CreateTriangle(PolygonGroupID, MakeConstArrayView(TriVertInstanceIDs, 3));
+		}
+	}
 }
 
-USkeletalMesh* UEFModelFactory::CreateSkeletalMeshFromStatic(FString Name, FSkeletonData& SkeletonData, FLODData& Data, UStaticMesh* Mesh, EObjectFlags Flags)
+USkeletalMesh* UEFModelFactory::CreateSkeletalMesh(UEFModelReader& Data, FName Name, UObject* Parent, EObjectFlags Flags)
 {
-	FReferenceSkeleton RefSkeleton;
-	FSkeletalMeshImportData SkelMeshImportData;
+	USkeletalMesh* SkeletalMesh = NewObject<USkeletalMesh>(Parent, Name, Flags);
 
-	USkeleton* Skeleton = CreateSkeleton(Name, Mesh->GetPackage(), Flags, SkeletonData, RefSkeleton, SkelMeshImportData);
-
-	USkeletalMeshFromStaticMeshFactory* SkeletalMeshFactory = NewObject<USkeletalMeshFromStaticMeshFactory>();
-	SkeletalMeshFactory->StaticMesh = Mesh;
-	SkeletalMeshFactory->Skeleton = Skeleton;
-	SkeletalMeshFactory->ReferenceSkeleton = RefSkeleton;
-
-	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
-	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(AssetTools.CreateAsset(Name, FPackageName::GetLongPackagePath(Mesh->GetPackage()->GetName()), USkeletalMesh::StaticClass(), SkeletalMeshFactory));
-
-	SkeletalMesh->LoadLODImportedData(0, SkelMeshImportData);
-	TArray<SkeletalMeshImportData::FRawBoneInfluence> Influences;
-	for (auto i = 0; i < Data.Weights.Num(); i++)
+	for(int i = 0; i < Data.LODs.Num(); i++)
 	{
-		const auto Weight = Data.Weights[i];
-		SkeletalMeshImportData::FRawBoneInfluence Influence;
-		Influence.BoneIndex = int32(Weight.WeightBoneIndex);
-		Influence.VertexIndex = Weight.WeightVertexIndex;
-		Influence.Weight = Weight.WeightAmount;
-		Influences.Add(Influence);
+		FSkeletalMeshLODInfo LODInfo;
+		SkeletalMesh->AddLODInfo(LODInfo); //important!
+
+		FMeshDescription* MeshDescription = SkeletalMesh->CreateMeshDescription(i);
+		FillSkeletalMeshAttributes(*MeshDescription, Data, i);
+		SkeletalMesh->CommitMeshDescription(i);
 	}
-	SkelMeshImportData.Influences = Influences;
-	SkeletalMesh->SaveLODImportedData(0, SkelMeshImportData);
 
-	SkeletalMesh->CalculateInvRefMatrices();
-	const FSkeletalMeshBuildSettings BuildOptions;
-	SkeletalMesh->GetLODInfo(0)->BuildSettings = BuildOptions;
-	SkeletalMesh->SetImportedBounds(FBoxSphereBounds(FBoxSphereBounds3f(FBox3f(SkelMeshImportData.Points))));
+	for (auto [MatIndex, MatName, FirstIndex, NumFaces] : Data.LODs[0].Materials) {
+		FSkeletalMaterial SkeletalMat = FSkeletalMaterial();
+		SkeletalMat.MaterialSlotName = MatName.c_str();
+		SkeletalMat.ImportedMaterialSlotName = MatName.c_str();
+		SkeletalMesh->GetMaterials().Add(SkeletalMat);
+	}
 
-	SkeletalMesh->SetSkeleton(Skeleton);
-	SkeletalMesh->PostEditChange();
-	FAssetRegistryModule::AssetCreated(SkeletalMesh);
-
+	//create and assign skeleton
+	FReferenceSkeleton RefSkeleton;
+	USkeleton* Skeleton = CreateSkeleton(Name.ToString(), Parent->GetPackage(), Flags, Data.Skeleton, RefSkeleton);
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
 	Skeleton->SetPreviewMesh(SkeletalMesh);
 	Skeleton->PostEditChange();
 	FAssetRegistryModule::AssetCreated(Skeleton);
 
+	SkeletalMesh->SetRefSkeleton(RefSkeleton);
+	SkeletalMesh->SetSkeleton(Skeleton);
+
+	SkeletalMesh->SetImportedBounds(FBoxSphereBounds(FBoxSphereBounds3f(FBox3f(Data.LODs[0].Vertices))));
+	SkeletalMesh->PostEditChange();
+	FAssetRegistryModule::AssetCreated(SkeletalMesh);
 	return SkeletalMesh;
 }
 
-USkeleton* UEFModelFactory::CreateSkeleton(FString Name, UPackage* ParentPackage, EObjectFlags Flags, FSkeletonData& Data, FReferenceSkeleton& RefSkeleton, FSkeletalMeshImportData& SkeletalMeshImportData)
+void UEFModelFactory::FillSkeletalMeshAttributes(FMeshDescription& MeshDesc, UEFModelReader& Data, int LODIndex)
+{
+	/*
+	FillStaticMeshAttributes(MeshDesc, Data.LODs[LODIndex]);
+	FSkeletalMeshAttributes SkeletalMeshAttributes(MeshDesc);
+	SkeletalMeshAttributes.Register();
+
+	//bones
+	TMeshAttributesRef<FBoneID, FName> BoneNames = SkeletalMeshAttributes.GetBoneNames();
+	TMeshAttributesRef<FBoneID, int> BoneParentIndices = SkeletalMeshAttributes.GetBoneParentIndices();
+	TMeshAttributesRef<FBoneID, FTransform> BonePoses = SkeletalMeshAttributes.GetBonePoses();
+
+	for (auto [BoneName, BoneParentIndex, BonePos, BoneRot] :  Data.Skeleton.Bones)
+	{
+		const FBoneID BoneID = SkeletalMeshAttributes.CreateBone();
+
+		BoneNames.Set(BoneID, BoneName.c_str());
+		BoneParentIndices.Set(BoneID, BoneParentIndex);
+
+		FTransform Transform;
+		//invert y
+		Transform.SetLocation(FVector(BonePos.X, -BonePos.Y, BonePos.Z));
+		Transform.SetRotation(FQuat(BoneRot.X, -BoneRot.Y, BoneRot.Z, -BoneRot.W));
+		BonePoses.Set(BoneID, Transform);
+	}
+
+	//weights
+	FSkinWeightsVertexAttributesRef VertexSkinWeights = SkeletalMeshAttributes.GetVertexSkinWeights();
+	for (auto [WeightVertexIndex, WeightAmount, WeightBoneIndex] : Data.LODs[LODIndex].Weights)
+	{
+		auto VertexWeights = VertexSkinWeights.Get(WeightVertexIndex);
+		UE::AnimationCore::FBoneWeight BoneWeight;
+		BoneWeight.SetWeight(WeightAmount);
+		BoneWeight.SetBoneIndex(WeightBoneIndex);
+		UE::AnimationCore::FBoneWeightsSettings InSetting;
+		VertexWeights.AddBoneWeight(BoneWeight, InSetting);
+	}
+
+	//morph targets
+	for (auto [MorphName, MorphDeltas] :  Data.LODs[LODIndex].Morphs)
+	{
+		FName MorphFName = MorphName.c_str();
+		SkeletalMeshAttributes.RegisterMorphTargetAttribute(MorphFName, true);
+		auto VertexMorphPositionDelta = SkeletalMeshAttributes.GetVertexMorphPositionDelta(MorphFName);
+		auto VertexInstanceMorphNormalDelta = SkeletalMeshAttributes.GetVertexInstanceMorphNormalDelta(MorphFName);
+		for (auto [MorphPosition, MorphNormals, MorphVertexIndex] :  MorphDeltas)
+		{
+			//invert y
+			const FVector3f CorrectedMorphPosition = FVector3f(MorphPosition.X, -MorphPosition.Y, MorphPosition.Z);
+			const FVector3f CorrectedMorphNormal = FVector3f(MorphNormals.X, -MorphNormals.Y, MorphNormals.Z);
+			VertexMorphPositionDelta.Set(MorphVertexIndex, CorrectedMorphPosition);
+			VertexInstanceMorphNormalDelta.Set(MorphVertexIndex, CorrectedMorphNormal);
+		}
+	}
+	*/
+}
+
+USkeleton* UEFModelFactory::CreateSkeleton(FString Name, UPackage* ParentPackage, EObjectFlags Flags, FSkeletonData& Data, FReferenceSkeleton& RefSkeleton)
 {
 	FString SkeletonName = Name + "_Skeleton";
-	auto SkeletonPackage = CreatePackage(*FPaths::Combine(FPaths::GetPath(ParentPackage->GetPathName()), SkeletonName));
+	UPackage* SkeletonPackage = CreatePackage(*FPaths::Combine(FPaths::GetPath(ParentPackage->GetPathName()), SkeletonName));
 	USkeleton* Skeleton = NewObject<USkeleton>(SkeletonPackage, FName(*SkeletonName), Flags);
 
+	/*
 	FReferenceSkeletonModifier RefSkeletonModifier(RefSkeleton, Skeleton);
 
-	TArray<FString> AddedBoneNames;
-	for (auto i = 0; i < Data.Bones.Num(); i++)
+	for (int i = 0; i < Data.Bones.Num(); i++)
 	{
-		SkeletalMeshImportData::FBone Bone;
-		Bone.Name = Data.Bones[i].BoneName.c_str();
-
-		if (AddedBoneNames.Contains(Bone.Name)) continue;
-		AddedBoneNames.Add(Bone.Name);
-		Bone.ParentIndex = (i > 0) ? Data.Bones[i].BoneParentIndex : INDEX_NONE;
-
-		FTransform3f Transform;
-		auto Location = FVector3f(Data.Bones[i].BonePos.X, -Data.Bones[i].BonePos.Y, Data.Bones[i].BonePos.Z);
+		FTransform Transform;
+		auto Location = FVector(Data.Bones[i].BonePos.X, -Data.Bones[i].BonePos.Y, Data.Bones[i].BonePos.Z);
 		Transform.SetLocation(Location);
-		auto Rotation = FQuat4f(Data.Bones[i].BoneRot.X, -Data.Bones[i].BoneRot.Y, Data.Bones[i].BoneRot.Z, -Data.Bones[i].BoneRot.W);
+		auto Rotation = FQuat(Data.Bones[i].BoneRot.X, -Data.Bones[i].BoneRot.Y, Data.Bones[i].BoneRot.Z, -Data.Bones[i].BoneRot.W);
 		Transform.SetRotation(Rotation);
+		FString BoneName = Data.Bones[i].BoneName.c_str();
 
-		SkeletalMeshImportData::FJointPos BonePos;
-		BonePos.Transform = Transform;
-		BonePos.Length = 1;
-		BonePos.XSize = 1;
-		BonePos.YSize = 1;
-		BonePos.ZSize = 1;
-		Bone.BonePos = BonePos;
-		SkeletalMeshImportData.RefBonesBinary.Add(Bone);
-
-		const FMeshBoneInfo BoneInfo(FName(*Bone.Name), Bone.Name, Bone.ParentIndex);
-		RefSkeletonModifier.Add(BoneInfo, FTransform(Bone.BonePos.Transform));
+		const FMeshBoneInfo BoneInfo(*BoneName, BoneName, (i > 0) ? Data.Bones[i].BoneParentIndex : INDEX_NONE);
+		RefSkeletonModifier.Add(BoneInfo, Transform);
 	}
+	*/
 	return Skeleton;
 }

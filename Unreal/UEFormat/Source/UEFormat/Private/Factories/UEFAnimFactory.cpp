@@ -25,13 +25,13 @@ UObject* UEFAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 {
 	FScopedSlowTask SlowTask(5, NSLOCTEXT("UEFAnimFactory", "BeginReadUEAnimFile", "Reading UEAnim file"), true);
 	if (Warn->GetScopeStack().Num() == 0)
-	{
 		SlowTask.MakeDialog(true);
-	}
+
 	SlowTask.EnterProgressFrame(0);
 
 	UEFAnimReader Data = UEFAnimReader(Filename);
-	if (!Data.Read()) return nullptr;
+	if (!Data.Read())
+		return nullptr;
 
 	//Ui
 	if (SettingsImporter->bInitialized == false)
@@ -45,10 +45,7 @@ UObject* UEFAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 		}
 
 		TSharedRef<SWindow> Window = SNew(SWindow).Title(FText::FromString(TEXT("Animation Import Options"))).SizingRule(ESizingRule::Autosized);
-		Window->SetContent
-		(
-			SAssignNew(ImportOptionsWindow, UEFAnimWidget).WidgetWindow(Window)
-		);
+		Window->SetContent(SAssignNew(ImportOptionsWindow, UEFAnimWidget).WidgetWindow(Window));
 		SettingsImporter = ImportOptionsWindow.Get()->Stun;
 		FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
 		bImport = ImportOptionsWindow.Get()->ShouldImport();
@@ -56,7 +53,7 @@ UObject* UEFAnimFactory::FactoryCreateFile(UClass* Class, UObject* Parent, FName
 		SettingsImporter->bInitialized = true;
 	}
 
-	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(Parent, Data.Header.ObjectName.c_str(), Flags);
+	UAnimSequence* AnimSequence = NewObject<UAnimSequence>(Parent, Name, Flags);
 	IAnimationDataController& Controller = AnimSequence->GetController();
 	USkeleton* Skeleton = SettingsImporter->Skeleton;
 

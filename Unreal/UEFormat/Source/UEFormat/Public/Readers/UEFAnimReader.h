@@ -37,7 +37,7 @@ class UEFAnimReader
 public:
 	UEFAnimReader(const FString Filename);
 	bool Read();
-	void ReadArchive(std::ifstream& Archive);
+	void ReadBuffer(const char* Buffer, int BufferSize);
 
 	const std::string GMAGIC = "UEFORMAT";
 	const std::string GZIP = "GZIP";

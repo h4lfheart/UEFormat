@@ -1,11 +1,13 @@
 "C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Source\UEFormat\Private\BPFL.cpp"
-/FI"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h"
+/FI"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.InclOrderUnreal5_4.h"
 /FI"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\Definitions.UEFormat.h"
-/Yu"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h"
-/Fp"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h.pch"
+/Yu"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.InclOrderUnreal5_4.h"
+/Fp"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.InclOrderUnreal5_4.h.pch"
 /Fo"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\BPFL.cpp.obj"
+/experimental:log "C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\BPFL.cpp.sarif"
 /sourceDependencies "C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\BPFL.cpp.dep.json"
 @"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.Shared.rsp"
+/d2ssa-cfg-question-
 /Zc:inline
 /nologo
 /Oi

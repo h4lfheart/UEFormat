@@ -18,7 +18,14 @@ public class UEFormat : ModuleRules
         PublicIncludePaths.AddRange(
             new string[]
             {
-                PluginsPath + "Experimental/Animation/SkeletalMeshModelingTools/Source/SkeletalMeshModelingTools/Private"
+                PluginsPath + "Experimental/Animation/SkeletalMeshModelingTools/Source/SkeletalMeshModelingTools/Private",
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd"),
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd/common"),
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd/compress"),
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd/decompress"),
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd/deprecated"),
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd/dictBuilder"),
+                Path.Combine(ModuleDirectory, "ThirdParty/zstd/legacy")
                 // ... add public include paths required here ...
             }
         );
@@ -43,10 +50,8 @@ public class UEFormat : ModuleRules
             {
                 "Core",
                 "MeshDescription",
+                "SkeletalMeshDescription",
                 "StaticMeshDescription",
-                "SkeletalMeshModelingTools",
-
-                //BPFL
                 "Json",
                 "JsonUtilities",
                 // ... add other public dependencies that you statically link with here ...
@@ -55,10 +60,12 @@ public class UEFormat : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[]
             {
-                "SkeletalMeshModelingTools",
                 "ContentBrowser",
                 "Core",
                 "CoreUObject",
+                "MeshDescription",
+                "SkeletalMeshDescription",
+                "StaticMeshDescription",
                 "DesktopWidgets",
                 "EditorStyle",
                 "AnimationModifiers",
@@ -68,15 +75,12 @@ public class UEFormat : ModuleRules
                 "Projects",
                 "UnrealEd",
                 "Slate",
-                "MeshBuilder",
                 "SlateCore",
                 "UnrealEd",
                 "ApplicationCore",
-                "MeshDescription",
-                "StaticMeshDescription",
                 "ToolWidgets",
                 "RenderCore"
-                // ... add private dependencies that you statically link with here ...	
+                // ... add private dependencies that you statically link with here ...
             }
         );
     }

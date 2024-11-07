@@ -7,7 +7,7 @@
 			"UEFAnimImportOptions.gen.cpp.obj",
 			"UEFModelFactory.gen.cpp.obj",
 			"UEFormat.init.gen.cpp.obj",
-			"UEFSkelMeshImportOptions.gen.cpp.obj",
+			"PerModuleInline.gen.cpp.obj",
 			"BPFL.cpp.obj",
 			"UEFAnimFactory.cpp.obj",
 			"UEFModelFactory.cpp.obj",
@@ -15,9 +15,7 @@
 			"UEFModelReader.cpp.obj",
 			"UEFormat.cpp.obj",
 			"UEFAnimImportOptions.cpp.obj",
-			"UEFAnimWidget.cpp.obj",
-			"UEFSkelMeshImportOptions.cpp.obj",
-			"UEFSkelMeshWidget.cpp.obj"
+			"UEFAnimWidget.cpp.obj"
 		]
 	}
 }
