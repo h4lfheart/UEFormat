@@ -1,0 +1,41 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\private\\factories\\uefanimfactory.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\intermediate\\build\\win64\\x64\\templateeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.inclorderunreal5_3.h.pch",
+        "Includes": [
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\ueformat\\definitions.ueformat.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\public\\factories\\uefanimfactory.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\public\\widgets\\anim\\uefanimimportoptions.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\intermediate\\build\\win64\\unrealeditor\\inc\\ueformat\\uht\\uefanimimportoptions.generated.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\intermediate\\build\\win64\\unrealeditor\\inc\\ueformat\\uht\\uefanimfactory.generated.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\public\\widgets\\anim\\uefanimwidget.h",
+            "c:\\program files\\epic games\\ue_5.5\\engine\\source\\runtime\\assetregistry\\public\\assetregistry\\assetregistrymodule.h",
+            "c:\\program files\\epic games\\ue_5.5\\engine\\source\\runtime\\assetregistry\\public\\assetregistry\\iassetregistry.h",
+            "c:\\program files\\epic games\\ue_5.5\\engine\\source\\runtime\\coreuobject\\public\\misc\\assetregistryinterface.h",
+            "c:\\program files\\epic games\\ue_5.5\\engine\\intermediate\\build\\win64\\unrealeditor\\inc\\assetregistry\\uht\\iassetregistry.generated.h",
+            "c:\\program files\\epic games\\ue_5.5\\engine\\source\\editor\\mainframe\\public\\interfaces\\imainframemodule.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\public\\readers\\uefanimreader.h",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\fstream",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\__msvc_filebuf.hpp",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\streambuf",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\xiosbase",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.22621.0\\ucrt\\share.h",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\xlocale",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\xfacet",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\xlocinfo",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\__msvc_xlocinfo_types.hpp",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\cctype",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\clocale",
+            "c:\\program files (x86)\\windows kits\\10\\include\\10.0.22621.0\\ucrt\\locale.h",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\istream",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\ostream",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\ios",
+            "c:\\program files\\microsoft visual studio\\2022\\community\\vc\\tools\\msvc\\14.42.34433\\include\\xlocnum",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\public\\readers\\uefmodelreader.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}

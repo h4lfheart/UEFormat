@@ -1,0 +1,20 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.UEFormat.cpp.obj": [
+			"BPFL.gen.cpp.obj",
+			"UEFAnimFactory.gen.cpp.obj",
+			"UEFAnimImportOptions.gen.cpp.obj",
+			"UEFModelFactory.gen.cpp.obj",
+			"UEFormat.init.gen.cpp.obj",
+			"BPFL.cpp.obj",
+			"UEFAnimFactory.cpp.obj",
+			"UEFModelFactory.cpp.obj",
+			"UEFAnimReader.cpp.obj",
+			"UEFModelReader.cpp.obj",
+			"UEFormat.cpp.obj",
+			"UEFAnimImportOptions.cpp.obj",
+			"UEFAnimWidget.cpp.obj"
+		]
+	}
+}

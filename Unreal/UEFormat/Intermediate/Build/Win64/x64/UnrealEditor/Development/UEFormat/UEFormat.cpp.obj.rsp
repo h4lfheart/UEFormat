@@ -1,11 +1,13 @@
-"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Source\UEFormat\Private\UEFormat.cpp"
-/FI"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h"
-/FI"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\Definitions.UEFormat.h"
-/Yu"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h"
-/Fp"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Intermediate\Build\Win64\x64\UniversalUmapTestingEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.h.pch"
-/Fo"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.cpp.obj"
-/sourceDependencies "C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.cpp.dep.json"
-@"C:\Users\Marcel\Documents\3D\Unreal Projects\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.Shared.rsp"
+"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Plugins\UEFormat\Source\UEFormat\Source\UEFormat\Private\UEFormat.cpp"
+/FI"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Intermediate\Build\Win64\x64\TemplateEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.InclOrderUnreal5_3.h"
+/FI"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\Definitions.UEFormat.h"
+/Yu"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Intermediate\Build\Win64\x64\TemplateEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.InclOrderUnreal5_3.h"
+/Fp"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Intermediate\Build\Win64\x64\TemplateEditor\Development\UnrealEd\SharedPCH.UnrealEd.Project.ValApi.Cpp20.InclOrderUnreal5_3.h.pch"
+/Fo"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.cpp.obj"
+/experimental:log "C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.cpp.sarif"
+/sourceDependencies "C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.cpp.dep.json"
+@"C:\Users\Marcel\Documents\3D\Unreal Projects\Main\UniversalUmapTesting\Plugins\UEFormat\Intermediate\Build\Win64\x64\UnrealEditor\Development\UEFormat\UEFormat.Shared.rsp"
+/d2ssa-cfg-question-
 /Zc:inline
 /nologo
 /Oi

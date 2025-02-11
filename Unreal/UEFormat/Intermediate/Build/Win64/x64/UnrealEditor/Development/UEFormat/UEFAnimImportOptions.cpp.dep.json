@@ -1,0 +1,15 @@
+{
+    "Version": "1.2",
+    "Data": {
+        "Source": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\private\\widgets\\anim\\uefanimimportoptions.cpp",
+        "ProvidedModule": "",
+        "PCH": "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\intermediate\\build\\win64\\x64\\templateeditor\\development\\unrealed\\sharedpch.unrealed.project.valapi.cpp20.inclorderunreal5_3.h.pch",
+        "Includes": [
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\intermediate\\build\\win64\\x64\\unrealeditor\\development\\ueformat\\definitions.ueformat.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\source\\ueformat\\source\\ueformat\\public\\widgets\\anim\\uefanimimportoptions.h",
+            "c:\\users\\marcel\\documents\\3d\\unreal projects\\main\\universalumaptesting\\plugins\\ueformat\\intermediate\\build\\win64\\unrealeditor\\inc\\ueformat\\uht\\uefanimimportoptions.generated.h"
+        ],
+        "ImportedModules": [],
+        "ImportedHeaderUnits": []
+    }
+}
