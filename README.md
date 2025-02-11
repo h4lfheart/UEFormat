@@ -8,7 +8,7 @@ A model and animation export format created for Unreal Engine game asset extract
 
 ## Supported Plugins
 - [Blender](https://github.com/halfuwu/UEFormat/tree/master/Blender)
-- [Unreal Engine 5.4+](https://github.com/halfuwu/UEFormat/tree/master/Unreal)
+- [Unreal Engine 5.5+](https://github.com/halfuwu/UEFormat/tree/master/Unreal)
 
 ## Blender Features
 ### Model Data (.uemodel)
@@ -33,18 +33,20 @@ A model and animation export format created for Unreal Engine game asset extract
 
 ## Unreal Features
 ### Model Data (.uemodel)
+- LOD Models (Level of Detail)
 - Vertices
 - Indices
 - Normals
-- Tangents
 - Texture Coordinates
 - Vertex Colors
 - Materials
 - Weights
 - Bones
+- Sockets
+- Morph Targets
 
 ### Animation Data (.ueanim)
 - Location Keys
 - Rotation Keys
 - Scale Keys
-  
+- Float Curves
