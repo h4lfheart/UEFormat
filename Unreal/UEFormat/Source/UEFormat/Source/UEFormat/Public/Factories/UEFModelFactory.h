@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright © 2025 Marcel K. All rights reserved.
 
 #pragma once
 #include "CoreMinimal.h"
@@ -7,9 +7,6 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
-
-
-
 #include "UEFModelFactory.generated.h"
 
 UCLASS(hidecategories=Object)

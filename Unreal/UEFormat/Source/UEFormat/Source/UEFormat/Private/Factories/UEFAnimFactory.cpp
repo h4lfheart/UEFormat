@@ -1,4 +1,5 @@
-﻿
+﻿// Copyright © 2025 Marcel K. All rights reserved.
+
 #include "Factories/UEFAnimFactory.h"
 #include "ComponentReregisterContext.h"
 #include "Animation/AnimSequence.h"

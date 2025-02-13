@@ -1,7 +1,6 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Copyright © 2025 Marcel K. All rights reserved.
 
 #include "Factories/UEFModelFactory.h"
-
 #include "StaticMeshAttributes.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
@@ -13,11 +12,10 @@
 
 class IMeshUtilities;
 
-UEFModelFactory::UEFModelFactory(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+UEFModelFactory::UEFModelFactory(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	Formats.Add(TEXT("uemodel; UEMODEL Mesh File"));
-	SupportedClass = UStaticMesh::StaticClass();
+	SupportedClass = UObject::StaticClass();
 	bCreateNew = false;
 	bEditorImport = true;
 }
@@ -308,6 +306,9 @@ USkeleton* UEFModelFactory::CreateSkeleton(FString Name, UObject* Parent, EObjec
 		NewSocket->RelativeScale = FVector(Socket.SocketScale.X, -Socket.SocketScale.Y, Socket.SocketScale.Z);
 		Skeleton->Sockets.Add(NewSocket);
 	}
+
+	for (const auto& VirtualBone : Data.VirtualBones)
+		Skeleton->AddNewNamedVirtualBone(VirtualBone.SourceBoneName.c_str(), VirtualBone.TargetBoneName.c_str(), VirtualBone.VirtualBoneName.c_str());	
 	
 	return Skeleton;
 }

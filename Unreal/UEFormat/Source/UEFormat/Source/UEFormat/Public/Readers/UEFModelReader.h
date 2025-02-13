@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// Copyright © 2025 Marcel K. All rights reserved.
+
+#pragma once
 #include <fstream>
 #include "Math/Quat.h"
 #include "Containers/Array.h"
@@ -76,6 +78,11 @@ struct FMorphTargetChunk {
     std::string MorphName;
     TArray<FMorphTargetDataChunk> MorphDeltas;
 };
+struct FVirtualBoneChunk {
+    std::string SourceBoneName;
+    std::string TargetBoneName;
+    std::string VirtualBoneName;
+};
 struct FUEFormatHeader {
     std::string Identifier;
     std::byte FileVersionBytes;
@@ -85,7 +92,6 @@ struct FUEFormatHeader {
     int32 CompressedSize;
     int32 UncompressedSize;
 };
-
 struct FLODData {
     TArray<FVector3f> Vertices;
     TArray<int32> Indices;
@@ -97,10 +103,10 @@ struct FLODData {
     TArray<FWeightChunk> Weights;
     TArray<FMorphTargetChunk> Morphs;
 };
-
 struct FSkeletonData {
     TArray<FBoneChunk> Bones;
     TArray<FSocketChunk> Sockets;
+    TArray<FVirtualBoneChunk> VirtualBones;
 };
 
 class UEFORMAT_API UEFModelReader {
@@ -109,18 +115,17 @@ public:
     ~UEFModelReader();
     
     bool Read();
-    void ReadBuffer(const char* Buffer, int32 BufferSize);
-
-    const std::string GMAGIC = "UEFORMAT";
-    const std::string GZIP = "GZIP";
-    const std::string ZSTD = "ZSTD";
-
+    
     FUEFormatHeader Header;
     TArray<FLODData> LODs;
     FSkeletonData Skeleton;
 
 private:
+    const std::string GMAGIC = "UEFORMAT";
+    const std::string GZIP = "GZIP";
+    const std::string ZSTD = "ZSTD";
+    
     std::ifstream Ar;
-    void ReadLODChunk(const char* Buffer, int& Offset, int LODIndex);
-    void ReadChunks(const char* Buffer, int& Offset, const std::string& ChunkName, int32 ArraySize, int32 ByteSize, int LODIndex);
+    void ReadBuffer(const char* Buffer, int32 BufferSize);
+    void ReadChunks(const char* Buffer, int& Offset, int32 ByteSize, int LODIndex);
 };

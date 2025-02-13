@@ -1,3 +1,5 @@
+// Copyright © 2025 Marcel K. All rights reserved.
+
 #include "Readers/UEFModelReader.h"
 #include <string>
 #include "zstd.h"
@@ -122,17 +124,17 @@ void UEFModelReader::ReadBuffer(const char* Buffer, int32 BufferSize) {
             for (int32 index = 0; index < ArraySize; ++index) {
                 std::string LODName = ReadBufferFString(Buffer, Offset);
                 int32 LODByteSize = ReadBufferData<int32>(Buffer, Offset);
-                ReadChunks(Buffer, Offset, LODName, 0, LODByteSize, index);
+                ReadChunks(Buffer, Offset, LODByteSize, index);
             }
         }
         else if (ChunkName == "SKELETON")
-            ReadChunks(Buffer, Offset, ChunkName, 0, ByteSize, 0);
+            ReadChunks(Buffer, Offset, ByteSize, 0);
         else
             Offset += ByteSize;
     }
 }
 
-void UEFModelReader::ReadChunks(const char* Buffer, int32& Offset, const std::string& ChunkName, int32 ArraySize, int32 ByteSize, int32 LODIndex) {
+void UEFModelReader::ReadChunks(const char* Buffer, int32& Offset, int32 ByteSize, int32 LODIndex) {
     int32 InnerOffset = Offset; // Offset for nested data
     while (InnerOffset < Offset + ByteSize)
     {
@@ -232,6 +234,16 @@ void UEFModelReader::ReadChunks(const char* Buffer, int32& Offset, const std::st
                     LODs[LODIndex].Morphs[i].MorphDeltas[j].MorphNormals = ReadBufferData<FVector3f>(Buffer, InnerOffset);
                     LODs[LODIndex].Morphs[i].MorphDeltas[j].MorphVertexIndex = ReadBufferData<int32>(Buffer, InnerOffset);
                 }
+            }
+        }
+        else if (InnerChunkName == "VIRTUALBONES")
+        {
+            Skeleton.VirtualBones.SetNum(InnerArraySize);
+            for (auto i = 0; i < InnerArraySize; i++)
+            {
+                Skeleton.VirtualBones[i].SourceBoneName = ReadBufferFString(Buffer, InnerOffset);
+                Skeleton.VirtualBones[i].TargetBoneName = ReadBufferFString(Buffer, InnerOffset);
+                Skeleton.VirtualBones[i].VirtualBoneName = ReadBufferFString(Buffer, InnerOffset);
             }
         }
         else

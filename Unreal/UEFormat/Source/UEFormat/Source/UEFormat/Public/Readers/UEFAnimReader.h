@@ -1,4 +1,6 @@
-﻿#pragma once
+﻿// Copyright © 2025 Marcel K. All rights reserved.
+
+#pragma once
 #include <fstream>
 #include "UEFModelReader.h"
 #include "Containers/Array.h"
@@ -39,13 +41,7 @@ public:
 	~UEFAnimReader();
 	
 	bool Read();
-	void ReadBuffer(const char* Buffer, int BufferSize);
-
-	const std::string GMAGIC = "UEFORMAT";
-	const std::string GZIP = "GZIP";
-	const std::string ZSTD = "ZSTD";
-	const std::string ANIM_IDENTIFIER = "UEANIM";
-
+	
 	FUEFormatHeader Header;
 	int32 NumFrames;
 	float FramesPerSecond;
@@ -53,5 +49,11 @@ public:
 	TArray<FCurve> Curves;
 
 private:
+	const std::string GMAGIC = "UEFORMAT";
+	const std::string GZIP = "GZIP";
+	const std::string ZSTD = "ZSTD";
+	const std::string ANIM_IDENTIFIER = "UEANIM";
+	
 	std::ifstream Ar;
+	void ReadBuffer(const char* Buffer, int BufferSize);
 };

@@ -3,14 +3,14 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "UEFormat",
-	"Description": "An .uemodel/.ueanim importer for Unreal Engine",
+	"Description": "An UEFormat .uemodel/.ueanim importer for Unreal Engine",
 	"Category": "Importers",
-	"CreatedBy": "Zain / Marcel K.",
-	"CreatedByURL": "https://github.com/KaiserM21",
+	"CreatedBy": "Marcel K.",
+	"CreatedByURL": "https://github.com/Ka1serM",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"CanContainContent": true,
+	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": false,
@@ -18,22 +18,7 @@
 		{
 			"Name": "UEFormat",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"AdditionalDependencies": [
-				"EditorScriptingUtilities",
-				"SkeletalMeshModelingTools"
-			]
+			"LoadingPhase": "Default"
 		}
-	],
-	"Plugins": [
-		{
-			"Name": "EditorScriptingUtilities",
-			"Enabled": true
-		},
-		{
-			"Name": "SkeletalMeshModelingTools",
-			"Enabled": true
-		}
-
 	]
 }

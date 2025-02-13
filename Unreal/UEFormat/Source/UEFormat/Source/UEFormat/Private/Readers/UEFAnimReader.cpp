@@ -1,4 +1,6 @@
-﻿#include "Readers/UEFAnimReader.h"
+﻿// Copyright © 2025 Marcel K. All rights reserved.
+
+#include "Readers/UEFAnimReader.h"
 #include "Readers/UEFModelReader.h"
 #include "Misc/Compression.h"
 #include <string>
