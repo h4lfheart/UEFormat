@@ -3,7 +3,8 @@ from typing import cast
 
 import bpy
 from bpy.types import PoseBone, bpy_prop_collection
-from mathutils import Vector
+from mathutils import Vector, Quaternion
+from math import *
 
 
 def bytes_to_str(in_bytes: bytes) -> str:
@@ -50,3 +51,14 @@ def get_active_armature():
         for modifier in obj.modifiers:  # type: ignore
             if modifier.type == "ARMATURE":
                 return modifier.object
+
+# pitch, yaw, roll
+def make_quat(rot):
+    return Quaternion((rot[3], rot[0], rot[1], rot[2]))
+
+def make_vector(vec):
+    return Vector((vec[0], vec[1], vec[2]))
+
+def has_vertex_weights(obj, vertex_group):
+    mesh = obj.data
+    return any(vertex_group.index in [g.group for g in v.groups] for v in mesh.vertices)

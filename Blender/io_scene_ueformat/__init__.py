@@ -6,11 +6,10 @@ bl_info = {
     "name": "UE Format (.uemodel / .ueanim)",
     "author": "Half",
     "version": (1, 0, 0),
-    "blender": (4, 0, 0),
+    "blender": (4, 2, 0),
     "location": "View3D > Sidebar > UE Format",
     "category": "Import",
 }
-
 
 def register() -> None:
     global zstd_decompressor  # noqa: PLW0603

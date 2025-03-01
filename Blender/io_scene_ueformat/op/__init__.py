@@ -2,9 +2,9 @@ import bpy
 from bpy.props import PointerProperty
 from bpy.types import Context, Menu, Scene
 
-from io_scene_ueformat.op.import_helpers import UFImportUEAnim, UFImportUEModel
-from io_scene_ueformat.op.panels import UEFORMAT_PT_Panel
-from io_scene_ueformat.op.settings import UFSettings
+from .import_helpers import UFImportUEAnim, UFImportUEModel
+from .panels import UEFORMAT_PT_Panel
+from .settings import UFSettings
 
 operators = [UEFORMAT_PT_Panel, UFImportUEModel, UFImportUEAnim, UFSettings]
 

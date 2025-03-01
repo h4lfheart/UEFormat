@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+import inspect
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,8 +17,10 @@ class UEFormatOptions:
 
     @classmethod
     def from_settings(cls, settings: UFSettings) -> UEFormatOptions:
-        field_names = {field.name for field in fields(cls)}
-        return cls(**{k: v for k, v in settings.get_props().items() if k in field_names})
+        return cls(**{
+            k: v for k, v in settings.get_props().items()
+            if k in inspect.signature(cls).parameters
+        })
 
 
 @dataclass(slots=True)
@@ -27,8 +30,9 @@ class UEModelOptions(UEFormatOptions):
     import_collision: bool = False
     import_sockets: bool = True
     import_morph_targets: bool = True
-    import_lods: bool = False
     import_virtual_bones: bool = False
+    target_lod: int = 0
+    allowed_reorient_children: dict = None
 
 
 @dataclass(slots=True)

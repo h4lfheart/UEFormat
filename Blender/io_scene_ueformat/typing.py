@@ -1,6 +1,6 @@
 from bpy.types import Context, Scene
 
-from io_scene_ueformat.op.settings import UFSettings
+from .op.settings import UFSettings
 
 
 class UFormatScene(Scene):

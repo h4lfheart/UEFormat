@@ -5,10 +5,10 @@ from bpy.props import CollectionProperty, StringProperty
 from bpy.types import Operator, OperatorFileListElement
 from bpy_extras.io_utils import ImportHelper
 
-from io_scene_ueformat.importer.logic import UEFormatImport
-from io_scene_ueformat.op.panels import UEFORMAT_PT_Panel
-from io_scene_ueformat.options import UEAnimOptions, UEFormatOptions, UEModelOptions
-from io_scene_ueformat.typing import UFormatContext
+from .panels import UEFORMAT_PT_Panel
+from ..importer.logic import UEFormatImport
+from ..options import UEAnimOptions, UEFormatOptions, UEModelOptions
+from ..typing import UFormatContext
 
 T = TypeVar("T", bound=UEFormatOptions)
 

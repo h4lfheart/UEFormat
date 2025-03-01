@@ -8,8 +8,9 @@ import bpy
 import numpy as np
 from bpy.types import Action, ArmatureModifier, ByteColorAttribute, EditBone, FCurve, Object, PoseBone
 from mathutils import Matrix, Quaternion, Vector
+from math import *
 
-from io_scene_ueformat.importer.classes import (
+from ..importer.classes import (
     ANIM_IDENTIFIER,
     MAGIC,
     MODEL_IDENTIFIER,
@@ -26,10 +27,11 @@ from io_scene_ueformat.importer.classes import (
     VertexColor,
     Weight,
 )
-from io_scene_ueformat.importer.reader import FArchiveReader
-from io_scene_ueformat.importer.utils import get_active_armature, get_case_insensitive, make_axis_vector
-from io_scene_ueformat.logging import Log
-from io_scene_ueformat.options import UEAnimOptions, UEFormatOptions, UEModelOptions
+from ..importer.reader import FArchiveReader
+from ..importer.utils import get_active_armature, get_case_insensitive, make_axis_vector, make_quat, make_vector, \
+    has_vertex_weights
+from ..logging import Log
+from ..options import UEAnimOptions, UEFormatOptions, UEModelOptions
 
 
 class UEFormatImport:
@@ -50,65 +52,74 @@ class UEFormatImport:
 
     def import_data(self, data: bytes) -> Object | Action:
         with FArchiveReader(data) as ar:
-            magic = ar.read_string(len(MAGIC))
-            if magic != MAGIC:
-                msg = "Invalid magic"
-                raise ValueError(msg)
+            return self.import_data_by_reader(ar)
+    def import_data_by_reader(self, ar: FArchiveReader) -> Object | Action:
+        magic = ar.read_string(len(MAGIC))
+        if magic != MAGIC:
+            msg = "Invalid magic"
+            raise ValueError(msg)
 
-            identifier = ar.read_fstring()
-            self.file_version = EUEFormatVersion(int.from_bytes(ar.read_byte(), byteorder="big"))
-            if self.file_version > EUEFormatVersion.LatestVersion:
-                msg = f"File Version {self.file_version} is not supported for this version of the importer."
+        identifier = ar.read_fstring()
+        file_version = EUEFormatVersion(int.from_bytes(ar.read_byte(), byteorder="big"))
+        if file_version > EUEFormatVersion.LatestVersion:
+            msg = f"File Version {file_version} is not supported for this version of the importer."
+            Log.error(msg)
+            raise ValueError(msg)
+        object_name = ar.read_fstring()
+        Log.info(f"Importing {object_name}")
+
+        read_archive = ar
+        is_compressed = ar.read_bool()
+        if is_compressed:
+
+            compression_type = ar.read_fstring()
+            uncompressed_size = ar.read_int()
+            _compressed_size = ar.read_int()
+
+            if compression_type == "GZIP":
+                read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
+            elif compression_type == "ZSTD":
+                from .. import zstd_decompressor
+                read_archive = FArchiveReader(
+                    zstd_decompressor.decompress(
+                        ar.read_to_end(),
+                        uncompressed_size,
+                    ),
+                )
+            else:
+                msg = f"Unknown Compression Type: {compression_type}"
                 Log.error(msg)
                 raise ValueError(msg)
-            object_name = ar.read_fstring()
-            Log.info(f"Importing {object_name}")
 
-            read_archive = ar
-            is_compressed = ar.read_bool()
-            if is_compressed:
-                from io_scene_ueformat import zstd_decompressor
+        read_archive.file_version = file_version
 
-                compression_type = ar.read_fstring()
-                uncompressed_size = ar.read_int()
-                _compressed_size = ar.read_int()
+        if identifier == MODEL_IDENTIFIER:
+            return self.import_uemodel_data(read_archive, object_name)
+        if identifier == ANIM_IDENTIFIER:
+            return self.import_ueanim_data(read_archive, object_name)
 
-                if compression_type == "GZIP":
-                    read_archive = FArchiveReader(gzip.decompress(ar.read_to_end()))
-                elif compression_type == "ZSTD":
-                    read_archive = FArchiveReader(
-                        zstd_decompressor.decompress(
-                            ar.read_to_end(),
-                            uncompressed_size,
-                        ),
-                    )
-                else:
-                    msg = f"Unknown Compression Type: {compression_type}"
-                    Log.error(msg)
-                    raise ValueError(msg)
+        msg = f"Unknown identifier: {identifier}"
+        Log.error(msg)
+        raise ValueError
 
-            if identifier == MODEL_IDENTIFIER:
-                return self.import_uemodel_data(read_archive, object_name)
-            if identifier == ANIM_IDENTIFIER:
-                return self.import_ueanim_data(read_archive, object_name)
-
-            msg = f"Unknown identifier: {identifier}"
-            Log.error(msg)
-            raise ValueError
-
-    # TODO: clean up code quality, esp in the skeleton department  # noqa: TD002, FIX002, TD003
+    # TODO: clean up code quality, esp in the skeleton department
     def import_uemodel_data(self, ar: FArchiveReader, name: str) -> Object:
         assert isinstance(self.options, UEModelOptions)  # noqa: S101
 
         data: UEModel
-        if self.file_version >= EUEFormatVersion.LevelOfDetailFormatRestructure:
+        if ar.file_version >= EUEFormatVersion.LevelOfDetailFormatRestructure:
             data = UEModel.from_archive(ar, self.options.scale_factor)
         else:
             data = self.deserialize_model_legacy(ar)
 
         # meshes
+        return_object = None
+        target_lod = min(self.options.target_lod, len(data.lods) - 1)
         created_lods: list[Object] = []
-        for lod in data.lods:
+        for index, lod in enumerate(data.lods):
+            if index != target_lod:
+                continue
+                
             lod_name = f"{name}_{lod.name}"
             mesh_data = bpy.data.meshes.new(lod_name)
 
@@ -189,9 +200,6 @@ class UEFormatImport:
                         mesh_data.polygons[face_index].material_index = i
 
             created_lods.append(mesh_object)
-
-            if not self.options.import_lods:
-                break
 
         # skeleton
         if data.skeleton and (data.skeleton.bones or (self.options.import_sockets and data.skeleton.sockets)):
@@ -309,7 +317,14 @@ class UEFormatImport:
                     else:
                         avg_child_pos = Vector()
                         avg_child_length = 0.0
+                        allowed_children = None
+                        if self.options.allowed_reorient_children is not None:
+                            allowed_children = self.options.allowed_reorient_children.get(bone.name)
+                            
                         for child in children:
+                            if allowed_children is not None and child.name not in allowed_children:
+                                continue
+                                
                             pos = Vector(child["orig_loc"])
                             avg_child_pos += pos
                             avg_child_length += pos.length
@@ -371,7 +386,7 @@ class UEFormatImport:
 
                 # bone colors
                 for bone in template_armature_object.pose.bones:
-                    if bone.children and len(bone.children) == 0:
+                    if not bone.children or len(bone.children) == 0:
                         bone.color.palette = "THEME03"
 
                 # socket colors
@@ -419,11 +434,11 @@ class UEFormatImport:
 
                 # bone colors
                 for bone in armature_object.pose.bones:
-                    if lod.vertex_groups.get(bone.name) is None:
+                    if not (vertex_group := lod.vertex_groups.get(bone.name)) or not has_vertex_weights(lod, vertex_group):
                         bone.color.palette = "THEME14"
                         continue
 
-                    if bone.children and len(bone.children) == 0:
+                    if not bone.children or len(bone.children) == 0:
                         bone.color.palette = "THEME03"
 
                 # socket colors
@@ -444,7 +459,7 @@ class UEFormatImport:
         if self.options.import_collision and data.collisions:
             for index, collision in enumerate(data.collisions):
                 collision_name = index if collision.name == "None" else collision.name
-                collision_object_name = name + f"_Collision_{collision_name}"
+                collision_object_name = f"UCX_{name}_{collision_name}"
                 collision_mesh_data = bpy.data.meshes.new(collision_object_name)
                 collision_mesh_data.from_pydata(collision.vertices, [], collision.indices)  # type: ignore[reportArgumentType]
 
@@ -531,7 +546,6 @@ class UEFormatImport:
                 q = post_quat.copy()
 
                 q.rotate(p_quat)
-
                 quat.rotate(q.conjugated())
 
                 add_key(rot_curves, quat, index, key.frame)
@@ -539,7 +553,8 @@ class UEFormatImport:
             bone.matrix_basis.identity()  # type: ignore[reportAttributeAccessIssue]
 
         return action
-
+    
+    
     def deserialize_model_legacy(self, ar: FArchiveReader) -> UEModel:
         data = UEModel()
         data.skeleton = UEModelSkeleton()
@@ -557,7 +572,7 @@ class UEFormatImport:
             elif header_name == "INDICES":
                 lod.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
             elif header_name == "NORMALS":
-                if self.file_version >= EUEFormatVersion.SerializeBinormalSign:
+                if ar.file_version >= EUEFormatVersion.SerializeBinormalSign:
                     flattened = np.array(
                         ar.read_float_vector(array_size * 4),
                     )  # W XYZ # TODO: change to XYZ W  # noqa: TD002, FIX002, TD003
@@ -569,7 +584,7 @@ class UEFormatImport:
                 ar.skip(array_size * 3 * 3)
                 # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)  # noqa: ERA001
             elif header_name == "VERTEXCOLORS":
-                if self.file_version >= EUEFormatVersion.AddMultipleVertexColors:
+                if ar.file_version >= EUEFormatVersion.AddMultipleVertexColors:
                     lod.colors = [VertexColor.from_archive(ar) for _ in range(array_size)]
                 else:
                     lod.colors = [
@@ -604,7 +619,7 @@ class UEFormatImport:
                     array_size,
                     lambda ar: Socket.from_archive(ar, self.options.scale_factor),
                 )
-            elif header_name == "COLLISION" and self.file_version >= EUEFormatVersion.AddConvexCollisionGeom:
+            elif header_name == "COLLISION":
                 data.collisions = ar.read_array(
                     array_size,
                     lambda ar: ConvexCollision.from_archive(ar, self.options.scale_factor),
