@@ -9,5 +9,5 @@ An UEFormat .uemodel/.ueanim importer for Unreal Engine 5
 4. If your project cant be compiled automatically (message), rebuild it in visual studio
 
 ### Credits
-- https://github.com/Ka1serM (Importer)
-- https://github.com/h4lfheart (Format Specification)
+- [Marcel K.](https://marcelk.dev) (Importer)
+- https://github.com/h4lfheart (Format Specs)
