@@ -2,6 +2,8 @@
 
 # UEFormat Blender Plugin
 
+[![Blender](https://img.shields.io/badge/Blender-4.2+-blue?logo=blender&logoColor=white&color=orange)](https://www.blender.org/download/)
+
 </div>
 
 ## Features
