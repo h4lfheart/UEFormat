@@ -564,7 +564,7 @@ class UEFormatImport:
             bone.matrix_basis.identity()  # type: ignore[reportAttributeAccessIssue]
 
         # curve anim data
-        if (mesh := get_armature_mesh(armature)) and (shape_keys :=  mesh.data.shape_keys):
+        if (mesh := get_armature_mesh(armature)) and (shape_keys :=  mesh.data.shape_keys) and self.options.import_curves:
             shape_keys.name = "Pose Asset"
             if shape_key_anim_data := shape_keys.animation_data:
                 shape_key_anim_data.action = None

@@ -38,6 +38,7 @@ class UEModelOptions(UEFormatOptions):
 @dataclass(slots=True)
 class UEAnimOptions(UEFormatOptions):
     rotation_only: bool = False
+    import_curves:bool = True
     override_skeleton: Armature | None = None
 
 @dataclass(slots=True)

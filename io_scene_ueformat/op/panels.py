@@ -58,6 +58,7 @@ class UEFORMAT_PT_Panel(Panel):  # noqa: N801
         box = obj.layout.box()
         box.label(text="Animation", icon="ACTION")
         box.row().prop(settings, "rotation_only")
+        box.row().prop(settings, "import_curves")
 
         if not import_menu:
             box.row().operator("uf.import_ueanim", icon="ANIM")
