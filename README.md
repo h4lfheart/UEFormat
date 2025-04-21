@@ -26,4 +26,9 @@
 - Location Keys
 - Rotation Keys
 - Scale Keys
-- Float Keys (Currently Unused)
+- Float Keys
+  - Shape Key Animation
+
+### Pose Data (.uepose)
+- Shape Keys From Bone Influences
+- Shape Keys From Curves
