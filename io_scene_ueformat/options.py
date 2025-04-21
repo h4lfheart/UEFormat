@@ -39,3 +39,7 @@ class UEModelOptions(UEFormatOptions):
 class UEAnimOptions(UEFormatOptions):
     rotation_only: bool = False
     override_skeleton: Armature | None = None
+
+@dataclass(slots=True)
+class UEPoseOptions(UEFormatOptions):
+    override_skeleton: Armature | None = None

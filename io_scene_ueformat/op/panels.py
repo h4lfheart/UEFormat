@@ -20,6 +20,7 @@ class UEFORMAT_PT_Panel(Panel):  # noqa: N801
         self.draw_general_options(self, uf_settings)
         self.draw_model_options(self, uf_settings)
         self.draw_anim_options(self, uf_settings)
+        self.draw_pose_options(self, uf_settings)
 
     @staticmethod
     def draw_general_options(obj: Panel | Operator, settings: UFSettings) -> None:
@@ -60,3 +61,16 @@ class UEFORMAT_PT_Panel(Panel):  # noqa: N801
 
         if not import_menu:
             box.row().operator("uf.import_ueanim", icon="ANIM")
+
+    @staticmethod
+    def draw_pose_options(
+            obj: Panel | Operator,
+            settings: UFSettings,
+            *,
+            import_menu: bool = False,
+    ) -> None:
+        box = obj.layout.box()
+        box.label(text="Pose", icon="OUTLINER_OB_ARMATURE")
+
+        if not import_menu:
+            box.row().operator("uf.import_uepose", icon="ARMATURE_DATA")
