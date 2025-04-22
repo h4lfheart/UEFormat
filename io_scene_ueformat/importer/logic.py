@@ -107,14 +107,14 @@ class UEFormatImport:
         raise ValueError
 
     # TODO: clean up code quality, esp in the skeleton department
-    def import_uemodel_data(self, ar: FArchiveReader, name: str) -> Object:
+    def import_uemodel_data(self, ar: FArchiveReader, name: str) -> tuple[bpy.types.Object, UEModel]:
         assert isinstance(self.options, UEModelOptions)  # noqa: S101
 
         data: UEModel
         if ar.file_version >= EUEFormatVersion.LevelOfDetailFormatRestructure:
             data = UEModel.from_archive(ar)
         else:
-            data = self.deserialize_model_legacy(ar)
+            data = UEModel.from_archive_legacy(ar)
 
         # meshes
         return_object = None
@@ -472,9 +472,9 @@ class UEFormatImport:
                 if self.options.link:
                     bpy.context.collection.objects.link(collision_mesh_object)
 
-        return return_object
+        return return_object, data
 
-    def import_ueanim_data(self, ar: FArchiveReader, name: str) -> Action:
+    def import_ueanim_data(self, ar: FArchiveReader, name: str) -> tuple[bpy.types.Action, UEAnim]:
         assert isinstance(self.options, UEAnimOptions)  # noqa: S101
 
         data = UEAnim.from_archive(ar)
@@ -491,9 +491,6 @@ class UEFormatImport:
             armature.animation_data_create()
             armature.animation_data.action = action
             
-        if bpy.app.version >= (4, 4, 0):
-            slot = action.slots.new(id_type='OBJECT', name=f"Slot_{armature.name}")
-            armature.animation_data.action_slot = slot
 
         # bone anim data
         pose_bones = armature.pose.bones
@@ -564,31 +561,36 @@ class UEFormatImport:
             bone.matrix_basis.identity()  # type: ignore[reportAttributeAccessIssue]
 
         # curve anim data
-        if (mesh := get_armature_mesh(armature)) and (shape_keys :=  mesh.data.shape_keys) and self.options.import_curves:
-            shape_keys.name = "Pose Asset"
-            if shape_key_anim_data := shape_keys.animation_data:
-                shape_key_anim_data.action = None
-
-            shape_keys_action = bpy.data.actions.new(name=f"{name}_Curves")
-            
-            if self.options.link:
-                shape_keys.animation_data_create()
-                shape_keys.animation_data.action = shape_keys_action
-
-            key_blocks = shape_keys.key_blocks
-            for key_block in key_blocks:
-                key_block.value = 0
+        if self.options.import_curves:
+            if (mesh := get_armature_mesh(armature)) and (shape_keys := mesh.data.shape_keys):
+                shape_keys.name = "Pose Asset"
+                if shape_key_anim_data := shape_keys.animation_data:
+                    shape_key_anim_data.action = None
+    
+                shape_keys_action = bpy.data.actions.new(name=f"{name}_Curves")
                 
-            for curve in data.curves:
-                
-                if not (shape_key := first(key_blocks, lambda block: block.name.lower() in curve.name.lower())):
-                    continue
+                if self.options.link:
+                    shape_keys.animation_data_create()
+                    shape_keys.animation_data.action = shape_keys_action
+    
+                key_blocks = shape_keys.key_blocks
+                for key_block in key_blocks:
+                    key_block.value = 0
                     
-                for key in curve.keys:
-                    shape_key.value = key.value
-                    shape_key.keyframe_insert(data_path="value", frame=key.frame)
+                for curve in data.curves:
+                    
+                    if not (shape_key := first(key_blocks, lambda block: block.name.lower() in curve.name.lower())):
+                        continue
+                        
+                    for key in curve.keys:
+                        shape_key.value = key.value
+                        shape_key.keyframe_insert(data_path="value", frame=key.frame)
+                    
+        if self.options.link and bpy.app.version >= (4, 4, 0):
+            slot = action.slots.new(id_type='OBJECT', name=f"Slot_{armature.name}")
+            armature.animation_data.action_slot = slot
 
-        return action
+        return action, data
 
     def import_uepose_data(self, ar: FArchiveReader, name: str):
         assert isinstance(self.options, UEPoseOptions)  # noqa: S101
@@ -600,7 +602,6 @@ class UEFormatImport:
         
         selected_mesh = get_armature_mesh(selected_armature)
 
-        shape_keys = selected_mesh.data.shape_keys
         original_shape_key_lock = selected_mesh.show_only_shape_key
         original_mode = bpy.context.active_object.mode
         bpy.ops.object.mode_set(mode="OBJECT")
@@ -613,12 +614,11 @@ class UEFormatImport:
         bone_swap_orig_parents(selected_armature)
         muted_constraints = disable_constraints(selected_armature)
 
-
-        if not shape_keys:
+        if not selected_mesh.data.shape_keys:
             # Create Basis shape key
             selected_mesh.shape_key_add(name="Basis", from_mix=False)
 
-        root_bone = selected_armature.pose.bones[0]
+        root_bone = selected_armature.pose.bones.get(self.options.root_bone) or selected_armature.pose.bones[0]
 
         pose_names = []
         for pose in data.poses:
@@ -704,7 +704,7 @@ class UEFormatImport:
         selected_mesh.select_set(True)
 
         # create shape keys from curve data
-        key_blocks = shape_keys.key_blocks
+        key_blocks = selected_mesh.data.shape_keys.key_blocks
         for pose in data.poses:
             if len(pose.curves) == 0:
                 continue
@@ -751,80 +751,3 @@ class UEFormatImport:
         bpy.context.view_layer.objects.active = selected_mesh
         
     
-    def deserialize_model_legacy(self, ar: FArchiveReader) -> UEModel:
-        data = UEModel()
-        data.skeleton = UEModelSkeleton()
-        lod = UEModelLOD(name="LOD0")
-
-        while not ar.eof():
-            header_name = ar.read_fstring()
-            array_size = ar.read_int()
-            byte_size = ar.read_int()
-
-            pos = ar.data.tell()
-            if header_name == "VERTICES":
-                flattened = ar.read_float_vector(array_size * 3)
-                lod.vertices = (np.array(flattened) * self.options.scale_factor).reshape(array_size, 3)
-            elif header_name == "INDICES":
-                lod.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
-            elif header_name == "NORMALS":
-                if ar.file_version >= EUEFormatVersion.SerializeBinormalSign:
-                    flattened = np.array(
-                        ar.read_float_vector(array_size * 4),
-                    )  # W XYZ # TODO: change to XYZ W  # noqa: TD002, FIX002, TD003
-                    lod.normals = flattened.reshape(-1, 4)[:, 1:]
-                else:
-                    flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
-                    lod.normals = flattened
-            elif header_name == "TANGENTS":
-                ar.skip(array_size * 3 * 3)
-                # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)  # noqa: ERA001
-            elif header_name == "VERTEXCOLORS":
-                if ar.file_version >= EUEFormatVersion.AddMultipleVertexColors:
-                    lod.colors = [VertexColor.from_archive(ar) for _ in range(array_size)]
-                else:
-                    lod.colors = [
-                        VertexColor(
-                            "COL0",
-                            (np.array(ar.read_byte_vector(array_size * 4)).reshape(array_size, 4) / 255).astype(
-                                np.float32,
-                            ),
-                        ),
-                    ]
-            elif header_name == "TEXCOORDS":
-                lod.uvs = []
-                for _ in range(array_size):
-                    count = ar.read_int()
-                    lod.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
-            elif header_name == "MATERIALS":
-                lod.materials = ar.read_array(array_size, lambda ar: Material.from_archive(ar))
-            elif header_name == "WEIGHTS":
-                lod.weights = ar.read_array(array_size, lambda ar: Weight.from_archive(ar))
-            elif header_name == "MORPHTARGETS":
-                lod.morphs = ar.read_array(
-                    array_size,
-                    lambda ar: MorphTarget.from_archive(ar, self.options.scale_factor),
-                )
-            elif header_name == "BONES":
-                data.skeleton.bones = ar.read_array(
-                    array_size,
-                    lambda ar: Bone.from_archive(ar, self.options.scale_factor),
-                )
-            elif header_name == "SOCKETS":
-                data.skeleton.sockets = ar.read_array(
-                    array_size,
-                    lambda ar: Socket.from_archive(ar, self.options.scale_factor),
-                )
-            elif header_name == "COLLISION":
-                data.collisions = ar.read_array(
-                    array_size,
-                    lambda ar: ConvexCollision.from_archive(ar, self.options.scale_factor),
-                )
-            else:
-                Log.warn(f"Unknown Data: {header_name}")
-                ar.skip(byte_size)
-            ar.data.seek(pos + byte_size, 0)
-
-        data.lods.append(lod)
-
-        return data

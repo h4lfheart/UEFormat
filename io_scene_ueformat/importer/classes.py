@@ -70,6 +70,85 @@ class UEModel:
                     ar.skip(byte_size)
         return data
 
+    @classmethod
+    def from_archive_legacy(self, ar: FArchiveReader) -> UEModel:
+        data = UEModel()
+        data.skeleton = UEModelSkeleton()
+        lod = UEModelLOD(name="LOD0")
+
+        while not ar.eof():
+            header_name = ar.read_fstring()
+            array_size = ar.read_int()
+            byte_size = ar.read_int()
+
+            pos = ar.data.tell()
+            if header_name == "VERTICES":
+                flattened = ar.read_float_vector(array_size * 3)
+                lod.vertices = (np.array(flattened) * self.options.scale_factor).reshape(array_size, 3)
+            elif header_name == "INDICES":
+                lod.indices = np.array(ar.read_int_vector(array_size), dtype=np.int32).reshape(array_size // 3, 3)
+            elif header_name == "NORMALS":
+                if ar.file_version >= EUEFormatVersion.SerializeBinormalSign:
+                    flattened = np.array(
+                        ar.read_float_vector(array_size * 4),
+                    )  # W XYZ #  # noqa: TD002, FIX002, TD003
+                    lod.normals = flattened.reshape(-1, 4)[:, 1:]
+                else:
+                    flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)
+                    lod.normals = flattened
+            elif header_name == "TANGENTS":
+                ar.skip(array_size * 3 * 3)
+                # flattened = np.array(ar.read_float_vector(array_size * 3)).reshape(array_size, 3)  # noqa: ERA001
+            elif header_name == "VERTEXCOLORS":
+                if ar.file_version >= EUEFormatVersion.AddMultipleVertexColors:
+                    lod.colors = [VertexColor.from_archive(ar) for _ in range(array_size)]
+                else:
+                    lod.colors = [
+                        VertexColor(
+                            "COL0",
+                            (np.array(ar.read_byte_vector(array_size * 4)).reshape(array_size, 4) / 255).astype(
+                                np.float32,
+                            ),
+                        ),
+                    ]
+            elif header_name == "TEXCOORDS":
+                lod.uvs = []
+                for _ in range(array_size):
+                    count = ar.read_int()
+                    lod.uvs.append(np.array(ar.read_float_vector(count * 2)).reshape(count, 2))
+            elif header_name == "MATERIALS":
+                lod.materials = ar.read_array(array_size, lambda ar: Material.from_archive(ar))
+            elif header_name == "WEIGHTS":
+                lod.weights = ar.read_array(array_size, lambda ar: Weight.from_archive(ar))
+            elif header_name == "MORPHTARGETS":
+                lod.morphs = ar.read_array(
+                    array_size,
+                    lambda ar: MorphTarget.from_archive(ar, self.options.scale_factor),
+                )
+            elif header_name == "BONES":
+                data.skeleton.bones = ar.read_array(
+                    array_size,
+                    lambda ar: Bone.from_archive(ar, self.options.scale_factor),
+                )
+            elif header_name == "SOCKETS":
+                data.skeleton.sockets = ar.read_array(
+                    array_size,
+                    lambda ar: Socket.from_archive(ar, self.options.scale_factor),
+                )
+            elif header_name == "COLLISION":
+                data.collisions = ar.read_array(
+                    array_size,
+                    lambda ar: ConvexCollision.from_archive(ar, self.options.scale_factor),
+                )
+            else:
+                Log.warn(f"Unknown Data: {header_name}")
+                ar.skip(byte_size)
+            ar.data.seek(pos + byte_size, 0)
+
+        data.lods.append(lod)
+
+        return data
+
 
 @dataclass(slots=True)
 class UEModelLOD:
@@ -545,7 +624,6 @@ class UEPose:
 
         while not ar.eof():
             section_name = ar.read_fstring()
-            print(section_name)
             array_size = ar.read_int()
             byte_size = ar.read_int()
 
