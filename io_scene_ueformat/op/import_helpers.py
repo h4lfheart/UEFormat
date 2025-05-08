@@ -37,6 +37,7 @@ class UFImportBase(Operator, ImportHelper, Generic[T]):
 class UFImportUEModel(UFImportBase):
     bl_idname = "uf.import_uemodel"
     bl_label = "Import Model"
+    bl_description = "Import Model"
 
     filename_ext = ".uemodel"
     filter_glob: StringProperty(default="*.uemodel", options={"HIDDEN"}, maxlen=255)
@@ -55,6 +56,7 @@ class UFImportUEModel(UFImportBase):
 class UFImportUEAnim(UFImportBase):
     bl_idname = "uf.import_ueanim"
     bl_label = "Import Animation"
+    bl_description = "Import Animation"
 
     filename_ext = ".ueanim"
     filter_glob: StringProperty(default="*.ueanim", options={"HIDDEN"}, maxlen=255)
@@ -72,6 +74,7 @@ class UFImportUEAnim(UFImportBase):
 class UFImportUEPose(UFImportBase):
     bl_idname = "uf.import_uepose"
     bl_label = "Import Pose"
+    bl_description = "Import Pose"
 
     filename_ext = ".uepose"
     filter_glob: StringProperty(default="*.uepose", options={"HIDDEN"}, maxlen=255)
