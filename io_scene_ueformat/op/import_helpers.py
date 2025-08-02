@@ -1,3 +1,4 @@
+import bpy
 from pathlib import Path
 from typing import Generic, TypeVar
 
@@ -32,6 +33,19 @@ class UFImportBase(Operator, ImportHelper, Generic[T]):
             UEFormatImport(options).import_file(directory / file.name)
 
         return {"FINISHED"}
+
+class UEMODEL_FH_import(bpy.types.FileHandler):
+    bl_idname = "UEMODEL_FH_import"
+    bl_label = "File handler for UEModel files"
+    bl_import_operator = "uf.import_uemodel"
+    bl_file_extensions = ".uemodel"
+
+    @classmethod
+    def poll_drop(cls, context):
+        return (context.area and context.area.type == 'VIEW_3D')
+    
+    def draw():
+        pass
 
 
 class UFImportUEModel(UFImportBase):
