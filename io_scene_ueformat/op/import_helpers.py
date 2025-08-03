@@ -34,11 +34,39 @@ class UFImportBase(Operator, ImportHelper, Generic[T]):
 
         return {"FINISHED"}
 
-class UEMODEL_FH_import(bpy.types.FileHandler):
-    bl_idname = "UEMODEL_FH_import"
+class UEModel_FH_import(bpy.types.FileHandler):
+    bl_idname = "UEModel_FH_import"
     bl_label = "File handler for UEModel files"
     bl_import_operator = "uf.import_uemodel"
     bl_file_extensions = ".uemodel"
+
+    @classmethod
+    def poll_drop(cls, context):
+        return (context.area and context.area.type == 'VIEW_3D')
+    
+    def draw():
+        pass
+
+
+class UEAnim_FH_import(bpy.types.FileHandler):
+    bl_idname = "UEAnim_FH_import"
+    bl_label = "File handler for UEAnimation files"
+    bl_import_operator = "uf.import_ueanim"
+    bl_file_extensions = ".ueanim"
+
+    @classmethod
+    def poll_drop(cls, context):
+        return (context.area and context.area.type == 'VIEW_3D')
+    
+    def draw():
+        pass
+
+
+class UEPose_FH_import(bpy.types.FileHandler):
+    bl_idname = "UEPose_FH_import"
+    bl_label = "File handler for UEPose files"
+    bl_import_operator = "uf.import_uepose"
+    bl_file_extensions = ".uepose"
 
     @classmethod
     def poll_drop(cls, context):
