@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import Generic, TypeVar
 
 from bpy.props import CollectionProperty, StringProperty
-from bpy.types import Operator, OperatorFileListElement
-from bpy_extras.io_utils import ImportHelper
+from bpy.types import Operator, OperatorFileListElement, FileHandler
+from bpy_extras.io_utils import ImportHelper, poll_file_object_drop
 
 from .panels import UEFORMAT_PT_Panel
 from ..importer.logic import UEFormatImport
@@ -33,6 +33,8 @@ class UFImportBase(Operator, ImportHelper, Generic[T]):
 
         return {"FINISHED"}
 
+    def invoke(self, context, event):
+        return ImportHelper.invoke_popup(self, context)
 
 class UFImportUEModel(UFImportBase):
     bl_idname = "uf.import_uemodel"
@@ -51,7 +53,6 @@ class UFImportUEModel(UFImportBase):
             context.scene.uf_settings,
             import_menu=True,
         )
-
 
 class UFImportUEAnim(UFImportBase):
     bl_idname = "uf.import_ueanim"
@@ -88,3 +89,28 @@ class UFImportUEPose(UFImportBase):
             context.scene.uf_settings,
             import_menu=True,
         )
+
+
+# drag and drop handler
+class IO_FH_ueformatBase(FileHandler):
+    @classmethod
+    def poll_drop(cls, context):
+        return poll_file_object_drop(context)
+
+class IO_FH_uemodel(IO_FH_ueformatBase):
+    bl_idname = "IO_FH_uemodel"
+    bl_label = "UEFormat Model"
+    bl_import_operator = UFImportUEModel.bl_idname
+    bl_file_extensions = ".uemodel"
+
+class IO_FH_ueanim(IO_FH_ueformatBase):
+    bl_idname = "IO_FH_ueanim"
+    bl_label = "UEFormat Animation"
+    bl_import_operator = UFImportUEAnim.bl_idname
+    bl_file_extensions = ".ueanim"
+
+class IO_FH_uepose(IO_FH_ueformatBase):
+    bl_idname = "IO_FH_uepose"
+    bl_label = "UEFormat Pose"
+    bl_import_operator = UFImportUEPose.bl_idname
+    bl_file_extensions = ".uepose"
