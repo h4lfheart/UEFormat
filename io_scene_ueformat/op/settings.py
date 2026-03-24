@@ -1,3 +1,5 @@
+from annotationlib import get_annotations
+
 from bpy.props import BoolProperty, FloatProperty, IntProperty
 from bpy.types import PropertyGroup
 from typing import Any
@@ -20,7 +22,7 @@ class UFSettings(PropertyGroup):
     def get_props(self) -> dict[str, Any]:
         props = {}
 
-        for key in self.__annotations__.keys():
+        for key in get_annotations(UFSettings).keys():
             props[key] = getattr(self, key)
 
         return props
