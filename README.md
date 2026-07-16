@@ -2,7 +2,7 @@
 
 # UEFormat
 
-A model and animation export format created for Unreal Engine game asset extraction. The export format is currently supported by [FortnitePorting](https://github.com/h4lfheart/FortnitePorting), [FModel](https://github.com/4sval/FModel) and [CUE4Parse](https://github.com/FabianFG/CUE4Parse).
+An intermediate 3D exchange format for Unreal Engine asset extraction.
 
 [![Discord](https://discord.com/api/guilds/866821077769781249/widget.png?style=shield)](https://discord.gg/DZ5YFXdBA6)
 [![Blender](https://img.shields.io/badge/Blender-4.2+-blue?logo=blender&logoColor=white&color=orange)](https://www.blender.org/download/)
@@ -13,10 +13,16 @@ A model and animation export format created for Unreal Engine game asset extract
 </div>
 
 ## Plugins
-- [Blender](https://github.com/h4lfheart/UEFormat/tree/blender)
-- [Unreal Engine](https://github.com/h4lfheart/UEFormat/tree/unreal)
+- [Blender](https://github.com/h4lfheart/UEFormat/tree/main/plugins/blender)
+- [Unreal Engine](https://github.com/h4lfheart/UEFormat/tree/main/plugins/unreal)
+
+## Supported Exporters
+- [FortnitePorting](https://github.com/h4lfheart/FortnitePorting)
+- [FModel](https://github.com/4sval/FModel)
+- [CUE4Parse](https://github.com/FabianFG/CUE4Parse)
 
 ## Format Specification
-- [Generic](https://github.com/h4lfheart/UEFormat/tree/master/docs/generic.md)
-- [UEModel](https://github.com/h4lfheart/UEFormat/tree/master/docs/uemodel.md)
-- [UEAnim](https://github.com/h4lfheart/UEFormat/tree/master/docs/ueanim.md)
+- [Generic](https://github.com/h4lfheart/UEFormat/tree/main/docs/generic.md)
+- [UEModel](https://github.com/h4lfheart/UEFormat/tree/main/docs/uemodel.md)
+- [UEAnim](https://github.com/h4lfheart/UEFormat/tree/main/docs/ueanim.md)
+- [UEPose](https://github.com/h4lfheart/UEFormat/tree/main/docs/uepose.md)
