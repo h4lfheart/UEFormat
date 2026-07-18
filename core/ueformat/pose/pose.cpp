@@ -9,22 +9,10 @@ namespace UEFormat
         pose.Poses.clear();
         pose.CurveNames.clear();
 
-        IterateDataAttributes(archive, [&](const FDataAttribute& section) -> bool
-        {
-            if (section.Name == "POSES")
-            {
-                archive << pose.Poses;
-            }
-            else if (section.Name == "CURVES")
-            {
-                archive << pose.CurveNames;
-            }
-            else
-            {
-                return false;
-            }
-            return true;
-        });
+        FDataAttributeSet attrs;
+        attrs.Bind("POSES", pose.Poses);
+        attrs.Bind("CURVES", pose.CurveNames);
+        archive << attrs;
 
         return archive;
     }

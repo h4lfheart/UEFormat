@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <vector>
 
 #include "../general/archive.h"
@@ -81,5 +82,21 @@ namespace UEFormat
             archive << value;
         }
         return archive;
+    }
+
+    template <typename T>
+    FArchive& operator<<(FArchive& archive, std::optional<T>& value)
+    {
+        if (archive.IsLoading())
+        {
+            value.emplace();
+            return archive << *value;
+        }
+
+        if (!value.has_value())
+        {
+            throw UEFormatException("Cannot serialize empty optional");
+        }
+        return archive << *value;
     }
 }

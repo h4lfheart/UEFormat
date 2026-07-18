@@ -1,5 +1,9 @@
 #pragma once
 
+#include <functional>
+#include <string_view>
+#include <vector>
+
 #include "archive.h"
 
 namespace UEFormat
@@ -30,4 +34,45 @@ namespace UEFormat
             }
         }
     }
+
+    struct FDataAttributeSet
+    {
+        template <typename T>
+        void Bind(std::string_view name, T& dest)
+        {
+            _bindings.push_back(Binding{
+                FString(name),
+                [&dest](FArchive& archive)
+                {
+                    archive << dest;
+                }
+            });
+        }
+
+        friend FArchive& operator<<(FArchive& archive, FDataAttributeSet& attrs)
+        {
+            IterateDataAttributes(archive, [&attrs, &archive](const FDataAttribute& attribute) -> bool
+            {
+                for (const auto& binding : attrs._bindings)
+                {
+                    if (binding.Name == attribute.Name)
+                    {
+                        binding.Read(archive);
+                        return true;
+                    }
+                }
+                return false;
+            });
+            return archive;
+        }
+
+    private:
+        struct Binding
+        {
+            FString Name;
+            std::function<void(FArchive&)> Read;
+        };
+
+        std::vector<Binding> _bindings;
+    };
 }

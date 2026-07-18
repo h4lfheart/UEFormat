@@ -8,81 +8,29 @@ namespace UEFormat
     {
         archive << lod.Name;
 
-        IterateDataAttributes(archive, [&](const FDataAttribute& attribute) -> bool
-        {
-            if (attribute.Name == "VERTICES")
-            {
-                archive << lod.Vertices;
-            }
-            else if (attribute.Name == "NORMALS")
-            {
-                archive << lod.Normals;
-            }
-            else if (attribute.Name == "TANGENTS")
-            {
-                archive << lod.Tangents;
-            }
-            else if (attribute.Name == "TEXCOORDS")
-            {
-                archive << lod.TextureCoordinates;
-            }
-            else if (attribute.Name == "INDICES")
-            {
-                archive << lod.Indices;
-            }
-            else if (attribute.Name == "VERTEXCOLORS")
-            {
-                archive << lod.VertexColors;
-            }
-            else if (attribute.Name == "MATERIALS")
-            {
-                archive << lod.Materials;
-            }
-            else if (attribute.Name == "WEIGHTS")
-            {
-                archive << lod.Weights;
-            }
-            else if (attribute.Name == "MORPHTARGETS")
-            {
-                archive << lod.MorphTargets;
-            }
-            else
-            {
-                return false;
-            }
-            return true;
-        });
+        FDataAttributeSet attrs;
+        attrs.Bind("VERTICES", lod.Vertices);
+        attrs.Bind("NORMALS", lod.Normals);
+        attrs.Bind("TANGENTS", lod.Tangents);
+        attrs.Bind("TEXCOORDS", lod.TextureCoordinates);
+        attrs.Bind("INDICES", lod.Indices);
+        attrs.Bind("VERTEXCOLORS", lod.VertexColors);
+        attrs.Bind("MATERIALS", lod.Materials);
+        attrs.Bind("WEIGHTS", lod.Weights);
+        attrs.Bind("MORPHTARGETS", lod.MorphTargets);
+        archive << attrs;
 
         return archive;
     }
 
     FArchive& operator<<(FArchive& archive, UEModelSkeleton& skeleton)
     {
-        IterateDataAttributes(archive, [&](const FDataAttribute& attribute) -> bool
-        {
-            if (attribute.Name == "METADATA")
-            {
-                archive << skeleton.Metadata;
-            }
-            else if (attribute.Name == "BONES")
-            {
-                archive << skeleton.Bones;
-            }
-            else if (attribute.Name == "SOCKETS")
-            {
-                archive << skeleton.Sockets;
-            }
-            else if (attribute.Name == "VIRTUALBONES")
-            {
-                archive << skeleton.VirtualBones;
-            }
-            else
-            {
-                return false;
-            }
-
-            return true;
-        });
+        FDataAttributeSet attrs;
+        attrs.Bind("METADATA", skeleton.Metadata);
+        attrs.Bind("BONES", skeleton.Bones);
+        attrs.Bind("SOCKETS", skeleton.Sockets);
+        attrs.Bind("VIRTUALBONES", skeleton.VirtualBones);
+        archive << attrs;
 
         return archive;
     }
@@ -93,26 +41,11 @@ namespace UEFormat
         model.Skeleton.reset();
         model.Collisions.clear();
 
-        IterateDataAttributes(archive, [&](const FDataAttribute& section) -> bool
-        {
-            if (section.Name == "LODS")
-            {
-                archive << model.LODs;
-            }
-            else if (section.Name == "SKELETON")
-            {
-                archive << model.Skeleton.emplace();
-            }
-            else if (section.Name == "COLLISION")
-            {
-                archive << model.Collisions;
-            }
-            else
-            {
-                return false;
-            }
-            return true;
-        });
+        FDataAttributeSet attrs;
+        attrs.Bind("LODS", model.LODs);
+        attrs.Bind("SKELETON", model.Skeleton);
+        attrs.Bind("COLLISION", model.Collisions);
+        archive << attrs;
 
         return archive;
     }
