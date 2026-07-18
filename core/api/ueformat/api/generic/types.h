@@ -66,6 +66,7 @@ typedef struct UEFormatNormal {
 
 UEFORMAT_API void ueformat_buffer_free(UEFormatBuffer* buffer);
 UEFORMAT_API const char* ueformat_status_string(UEFormatStatus status);
+UEFORMAT_API uint8_t ueformat_latest_version(void);
 
 #ifdef __cplusplus
 }

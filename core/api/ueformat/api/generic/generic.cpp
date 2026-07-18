@@ -4,6 +4,8 @@
 #include <new>
 #include <string>
 
+#include "ueformat/generic/archive.h"
+
 namespace
 {
     thread_local std::string g_threadError;
@@ -87,6 +89,11 @@ UEFORMAT_API const char* ueformat_status_string(UEFormatStatus status)
     default:
         return "unknown status";
     }
+}
+
+UEFORMAT_API uint8_t ueformat_latest_version(void)
+{
+    return static_cast<uint8_t>(UEFormat::EUEFormatVersion::LatestVersion);
 }
 
 }
