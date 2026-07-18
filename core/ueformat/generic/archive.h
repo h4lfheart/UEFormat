@@ -23,7 +23,7 @@ namespace UEFormat
         SerializeAssetMetadata = 7,
         PreserveOriginalTransforms = 8,
         AddPoseExport = 9,
-        RestructureDataAttributes = 10,
+        AttributeSetFormat = 10,
 
         VersionPlusOne,
         LatestVersion = VersionPlusOne - 1

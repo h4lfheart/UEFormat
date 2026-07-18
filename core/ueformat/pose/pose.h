@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.h"
-#include "ueformat/general/archive.h"
+#include "ueformat/generic/archive.h"
 #include "ueformat/infrastructure/types.h"
 
 namespace UEFormat

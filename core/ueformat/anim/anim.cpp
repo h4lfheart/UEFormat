@@ -1,6 +1,6 @@
 #include "anim.h"
 
-#include "ueformat/general/attribute.h"
+#include "ueformat/generic/attribute.h"
 
 namespace UEFormat
 {

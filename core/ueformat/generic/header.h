@@ -18,6 +18,7 @@ namespace UEFormat
         FString Identifier;
         EUEFormatVersion FileVersion = EUEFormatVersion::LatestVersion;
         FString ObjectName;
+        FString ObjectPath;
         bool IsCompressed = false;
 
         FString CompressionFormat;
@@ -42,7 +43,7 @@ namespace UEFormat
             throw UEFormatException("Invalid magic");
         }
 
-        archive << header.Identifier << header.FileVersion << header.ObjectName << header.IsCompressed;
+        archive << header.Identifier << header.FileVersion << header.ObjectName << header.ObjectPath; << header.IsCompressed;
 
         if (header.IsCompressed)
         {

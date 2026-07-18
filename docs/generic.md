@@ -2,7 +2,7 @@
 
 Shared binary conventions for `.uemodel`, `.ueanim`, and `.uepose`.
 
-This document describes the **latest** format only (`EUEFormatVersion.LatestVersion` = `RestructureDataAttributes` = 10). Older versions are not documented.
+This document describes the **latest** format only (`EUEFormatVersion.LatestVersion` = `AttributeSetFormat` = 10). Older versions are not documented.
 
 All multi-byte integers and floats are **little-endian**. Integers are signed unless noted otherwise.
 
@@ -62,8 +62,9 @@ struct FUEFormatHeader
 {
     uint8[8] Magic; // "UEFORMAT"
     FString Identifier; // "UEMODEL" | "UEANIM" | "UEPOSE"
-    uint8 FileVersion; // LatestVersion (RestructureDataAttributes = 10)
+    uint8 FileVersion; // LatestVersion (AttributeSetFormat = 10)
     FString ObjectName;
+    FString ObjectPath;
     bool IsCompressed;
 }
 ```

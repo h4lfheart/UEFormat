@@ -3,7 +3,7 @@
 #include <optional>
 #include <vector>
 
-#include "../general/archive.h"
+#include "../generic/archive.h"
 #include "exception.h"
 
 namespace UEFormat

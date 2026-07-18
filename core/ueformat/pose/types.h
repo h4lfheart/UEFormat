@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../general/archive.h"
+#include "../generic/archive.h"
 #include "../infrastructure/types.h"
 
 namespace UEFormat
