@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -45,19 +46,67 @@ namespace UEFormat
                 [&dest](FArchive& archive)
                 {
                     archive << dest;
-                }
+                },
+                [] { return true; }
+            });
+        }
+
+        template <typename T>
+        void Bind(std::string_view name, std::optional<T>& dest)
+        {
+            _bindings.push_back(Binding{
+                FString(name),
+                [&dest](FArchive& archive)
+                {
+                    archive << dest;
+                },
+                [&dest] { return dest.has_value(); }
             });
         }
 
         friend FArchive& operator<<(FArchive& archive, FDataAttributeSet& attrs)
         {
+            if (archive.IsSaving())
+            {
+                std::vector<Binding*> bindingsToSave;
+                bindingsToSave.reserve(attrs._bindings.size());
+                for (auto& binding : attrs._bindings)
+                {
+                    if (binding.ShouldSave())
+                    {
+                        bindingsToSave.push_back(&binding);
+                    }
+                }
+
+                i32 count = static_cast<i32>(bindingsToSave.size());
+                archive << count;
+
+                for (const Binding* binding : bindingsToSave)
+                {
+                    auto payload = FArchive::Writer();
+                    binding->Serialize(payload);
+                    auto bytes = payload.StealBytes();
+
+                    FDataAttribute attribute;
+                    attribute.Name = binding->Name;
+                    attribute.ByteSize = static_cast<i32>(bytes.size());
+                    archive << attribute;
+                    if (!bytes.empty())
+                    {
+                        archive.Serialize(bytes.data(), bytes.size());
+                    }
+                }
+
+                return archive;
+            }
+
             IterateDataAttributes(archive, [&attrs, &archive](const FDataAttribute& attribute) -> bool
             {
                 for (const auto& binding : attrs._bindings)
                 {
                     if (binding.Name == attribute.Name)
                     {
-                        binding.Read(archive);
+                        binding.Serialize(archive);
                         return true;
                     }
                 }
@@ -70,7 +119,8 @@ namespace UEFormat
         struct Binding
         {
             FString Name;
-            std::function<void(FArchive&)> Read;
+            std::function<void(FArchive&)> Serialize;
+            std::function<bool()> ShouldSave;
         };
 
         std::vector<Binding> _bindings;

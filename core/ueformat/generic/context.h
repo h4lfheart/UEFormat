@@ -12,5 +12,10 @@ namespace UEFormat
         ~Context();
 
         UEFormatContainer LoadContainer(const TArray<u8>& data);
+
+        TArray<u8> SaveContainer(
+            const UEFormatObject& object,
+            FString objectName,
+            FString objectPath = {});
     };
 }

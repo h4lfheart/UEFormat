@@ -6,10 +6,6 @@ namespace UEFormat
 {
     FArchive& operator<<(FArchive& archive, UEAnim& anim)
     {
-        anim.Metadata = {};
-        anim.Tracks.clear();
-        anim.Curves.clear();
-
         FDataAttributeSet attrs;
         attrs.Bind("METADATA", anim.Metadata);
         attrs.Bind("TRACKS", anim.Tracks);

@@ -37,10 +37,6 @@ namespace UEFormat
 
     FArchive& operator<<(FArchive& archive, UEModel& model)
     {
-        model.LODs.clear();
-        model.Skeleton.reset();
-        model.Collisions.clear();
-
         FDataAttributeSet attrs;
         attrs.Bind("LODS", model.LODs);
         attrs.Bind("SKELETON", model.Skeleton);

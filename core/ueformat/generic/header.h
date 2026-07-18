@@ -43,17 +43,14 @@ namespace UEFormat
             throw UEFormatException("Invalid magic");
         }
 
-        archive << header.Identifier << header.FileVersion << header.ObjectName << header.ObjectPath; << header.IsCompressed;
+        archive << header.Identifier << header.FileVersion << header.ObjectName << header.ObjectPath << header.IsCompressed;
 
         if (header.IsCompressed)
         {
             archive << header.CompressionFormat << header.UncompressedSize << header.CompressedSize;
         }
 
-        if (archive.IsLoading())
-        {
-            archive.SetFileVersion(header.FileVersion);
-        }
+        archive.SetFileVersion(header.FileVersion);
 
         return archive;
     }

@@ -6,9 +6,6 @@ namespace UEFormat
 {
     FArchive& operator<<(FArchive& archive, UEPose& pose)
     {
-        pose.Poses.clear();
-        pose.CurveNames.clear();
-
         FDataAttributeSet attrs;
         attrs.Bind("POSES", pose.Poses);
         attrs.Bind("CURVES", pose.CurveNames);
