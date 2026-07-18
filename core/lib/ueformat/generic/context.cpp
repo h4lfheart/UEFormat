@@ -27,8 +27,7 @@ TArray<u8> Context::Save(const UEFormatObject& object, const FSaveOptions& optio
     container.Header.ObjectName = options.ObjectName;
     container.Header.ObjectPath = options.ObjectPath;
     container.Header.FileVersion = options.FileVersion;
-    // Compression is accepted in FSaveOptions but not applied in v1.
-    (void)options.Compression;
+    // TODO compression support GZIP/ZSTD
     container.Header.IsCompressed = false;
 
     auto archive = FArchive::Writer();
@@ -49,22 +48,6 @@ TArray<u8> Context::Save(const UEAnim& anim, const FSaveOptions& options)
 TArray<u8> Context::Save(const UEPose& pose, const FSaveOptions& options)
 {
     return Save(UEFormatObject{pose}, options);
-}
-
-UEFormatContainer Context::LoadContainer(const TArray<u8>& data)
-{
-    return Load(data);
-}
-
-TArray<u8> Context::SaveContainer(
-    const UEFormatObject& object,
-    FString objectName,
-    FString objectPath)
-{
-    FSaveOptions options;
-    options.ObjectName = std::move(objectName);
-    options.ObjectPath = std::move(objectPath);
-    return Save(object, options);
 }
 
 }

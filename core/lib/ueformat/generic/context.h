@@ -21,13 +21,5 @@ namespace UEFormat
         TArray<u8> Save(const UEModel& model, const FSaveOptions& options);
         TArray<u8> Save(const UEAnim& anim, const FSaveOptions& options);
         TArray<u8> Save(const UEPose& pose, const FSaveOptions& options);
-
-        // Legacy names — thin wrappers over Load / Save.
-        UEFormatContainer LoadContainer(const TArray<u8>& data);
-
-        TArray<u8> SaveContainer(
-            const UEFormatObject& object,
-            FString objectName,
-            FString objectPath = {});
     };
 }
