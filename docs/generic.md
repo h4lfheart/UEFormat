@@ -1,6 +1,8 @@
 # UEFormat Specifications
 
-Shared binary conventions used by `.uemodel`, `.ueanim`, and `.uepose`.
+Shared binary conventions for `.uemodel`, `.ueanim`, and `.uepose`.
+
+This document describes the **latest** format only (`EUEFormatVersion.LatestVersion` = `RestructureDataAttributes` = 10). Older versions are not documented.
 
 All multi-byte integers and floats are **little-endian**. Integers are signed unless noted otherwise.
 
@@ -35,7 +37,7 @@ struct FString
 
 ### TArray\<T\>
 
-Used only where the exporter calls `WriteArray`: an inline count followed by that many elements:
+Inline count followed by that many elements:
 
 ```csharp
 struct TArray<T>
@@ -45,7 +47,7 @@ struct TArray<T>
 }
 ```
 
-This is **not** the same as `FDataChunk.Count`. Most mesh arrays rely on the chunk header count and pack elements with no extra inline size.
+Variable-length payloads inside [`FDataAttribute`](#fdataattribute) `Data` use `TArray`.
 
 ### Fixed magic string
 
@@ -60,7 +62,7 @@ struct FUEFormatHeader
 {
     uint8[8] Magic; // "UEFORMAT"
     FString Identifier; // "UEMODEL" | "UEANIM" | "UEPOSE"
-    uint8 FileVersion;
+    uint8 FileVersion; // LatestVersion (RestructureDataAttributes = 10)
     FString ObjectName;
     bool IsCompressed;
 }
@@ -78,41 +80,47 @@ Data bytes follow the header: compressed `CompressedSize` bytes when `IsCompress
 
 ---
 
-## Chunk Framing
+## Attribute Framing
 
-### FDataChunk
+### FDataAttribute
 
-Named data chunk with an element count. Unknown chunks should be skipped using `ByteSize`.
+Named length-prefixed payload. Layout of `Data` is determined by `Name`. There is **no** per-attribute element count — arrays live inside `Data` as `TArray<T>`.
 
 ```csharp
-struct FDataChunk
+struct FDataAttribute
 {
-    FString HeaderName;
-    int32 Count;
+    FString Name;
     int32 ByteSize;
     uint8[ByteSize] Data;
 }
 ```
 
-When the chunk holds a packed array, `Count` is the number of elements in `Data` (no nested `TArray` count). Nested members may still use `TArray<T>`.
+**Reading**
 
-### FStaticDataChunk
+1. Read `Name` and `ByteSize`.
+2. If the name is known, deserialize the typed layout for `Data` directly from the archive (in place).
+3. If the name is unknown, `Skip(ByteSize)`.
 
-Named data chunk **without** a count (used for LOD bodies):
+`ByteSize` exists so unknown attributes can be skipped. Known attributes do not need a sub-archive or EOF loop — the typed payload drives how many bytes are consumed.
 
-```csharp
-struct FStaticDataChunk
-{
-    FString HeaderName;
-    int32 ByteSize;
-    uint8[ByteSize] Data;
-}
+### File payload
+
+After the header / decompression, every file payload is:
+
+```text
+TArray<FDataAttribute>  // sections for that identifier
 ```
 
-Notes:
+Wire order:
 
-- Chunk order is **not guaranteed**. Readers match on `HeaderName`.
-- Nested regions (LOD bodies, skeleton bodies) are sequences of chunks inside another chunk's `Data`.
+```text
+int32   SectionCount
+SectionCount × FDataAttribute
+```
+
+Section names and payloads are defined per identifier ([uemodel.md](uemodel.md), [ueanim.md](ueanim.md), [uepose.md](uepose.md)). Section order is **not guaranteed**. Empty optional sections may be omitted.
+
+Section bodies may themselves be containers of `FDataAttribute`s (for example each `UEModelLOD` holds a `TArray<FDataAttribute>` of mesh attributes).
 
 ---
 

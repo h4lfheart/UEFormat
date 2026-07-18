@@ -17,12 +17,13 @@ namespace UEFormat
         SerializeBinormalSign = 1,
         AddMultipleVertexColors = 2,
         AddConvexCollisionGeom = 3,
-        LevelOfDetailFormatRestructure = 4,
+        RestructureLevelOfDetailFormat = 4,
         SerializeVirtualBones = 5,
         SerializeMaterialPath = 6,
         SerializeAssetMetadata = 7,
         PreserveOriginalTransforms = 8,
         AddPoseExport = 9,
+        RestructureDataAttributes = 10,
 
         VersionPlusOne,
         LatestVersion = VersionPlusOne - 1
@@ -45,6 +46,17 @@ namespace UEFormat
         void SetFileVersion(EUEFormatVersion version) { _fileVersion = version; }
 
         FArchive& Serialize(void* data, usize size);
+
+        template <typename T>
+        FArchive& SerializePackedArray(std::vector<T>& values, i32 count)
+        {
+            values.resize(static_cast<usize>(count));
+            for (auto& value : values)
+            {
+                *this << value;
+            }
+            return *this;
+        }
 
         void Skip(usize size);
 

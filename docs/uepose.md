@@ -2,14 +2,18 @@
 
 Binary layout for `.uepose` files (`Identifier = "UEPOSE"`).
 
+Latest format only. Shared header / [payload sections](generic.md#file-payload) / `FDataAttribute` framing: [generic.md](generic.md).
+
 ---
 
-## Data Chunks
+## Sections
 
-| HeaderName | Count | Data |
-|------------|-------|------|
-| `POSES` | pose count | [FPoseData](#structures) x `Count` |
-| `CURVES` | curve name count | `FString` x `Count` |
+Top-level `TArray<FDataAttribute>` after the header:
+
+| Name | Data |
+|------|------|
+| `POSES` | `TArray<FPoseData>` |
+| `CURVES` | `TArray<FString>` |
 
 ---
 

@@ -2,6 +2,7 @@
 
 #include <variant>
 
+#include "archive.h"
 #include "header.h"
 #include "ueformat/anim/anim.h"
 #include "ueformat/model/model.h"
@@ -16,4 +17,6 @@ namespace UEFormat
         FUEFormatHeader Header;
         UEFormatObject Object;
     };
+
+    FArchive& operator<<(FArchive& archive, UEFormatContainer& container);
 }

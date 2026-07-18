@@ -2,55 +2,86 @@
 
 Binary layout for `.uemodel` files (`Identifier = "UEMODEL"`).
 
+Latest format only. Shared header / [payload sections](generic.md#file-payload) / `FDataAttribute` framing: [generic.md](generic.md).
+
 ---
 
-## Data Chunks
+## Sections
 
-| HeaderName | Count | Data |
-|------------|-------|------|
-| `LODS` | LOD count | [FStaticDataChunk](generic.md#fstaticdatachunk) per LOD (`LOD0`, `LOD1`, ...) |
-| `SKELETON` | `1` | Nested skeleton [FDataChunk](generic.md#fdatachunk)s |
-| `COLLISION` | convex count | [FConvexMeshCollision](#structures) x `Count` |
+Top-level `TArray<FDataAttribute>` after the header:
 
-### LOD
+| Name | Data |
+|------|------|
+| `LODS` | `TArray<UEModelLOD>` |
+| `SKELETON` | `TArray<FDataAttribute>` |
+| `COLLISION` | `TArray<FConvexMeshCollision>` |
 
-Each LOD entry inside `LODS` is an `FStaticDataChunk` named `LOD0`, `LOD1`, etc. Its `Data` is a nested `FDataChunk` stream:
+---
 
-| HeaderName | Count | Packed layout |
-|------------|-------|---------------|
-| `VERTICES` | vertex count | `FVector` x `Count` |
-| `NORMALS` | vertex count | (`float` BinormalSign + `FVector` Normal) x `Count` |
-| `TANGENTS` | vertex count | `FVector` x `Count` |
-| `TEXCOORDS` | UV channel count | `TArray<FMeshUVFloat>` x `Count` |
-| `INDICES` | index count | `uint32` x `Count` (triangle list) |
-| `VERTEXCOLORS` | layer count | [FVertexColor](#structures) x `Count` |
-| `MATERIALS` | section count | [FMaterial](#structures) x `Count` |
-| `WEIGHTS` | influence count | [FWeight](#structures) x `Count` |
-| `MORPHTARGETS` | morph count | [FMorphTarget](#structures) x `Count` |
+## LOD attributes
 
-`NORMALS` packing per vertex:
+Each `UEModelLOD` is:
 
-```csharp
-float BinormalSign;
-FVector Normal;
+```text
+FString Name                 // e.g. "LOD0"
+TArray<FDataAttribute>       // mesh attributes
 ```
 
-### Skeleton
+| Name | Data |
+|------|------|
+| `VERTICES` | `TArray<FVector>` |
+| `NORMALS` | `TArray<FNormal>` |
+| `TANGENTS` | `TArray<FVector>` |
+| `TEXCOORDS` | `TArray<FTexCoordEntry>` |
+| `INDICES` | `TArray<uint32>` |
+| `VERTEXCOLORS` | `TArray<FVertexColor>` |
+| `MATERIALS` | `TArray<FMaterial>` |
+| `WEIGHTS` | `TArray<FWeight>` |
+| `MORPHTARGETS` | `TArray<FMorphTarget>` |
 
-`SKELETON` data is a nested `FDataChunk` stream:
+---
 
-| HeaderName | Count | Data |
-|------------|-------|------|
-| `METADATA` | `1` | `FString` skeleton path |
-| `BONES` | bone count | [FBone](#structures) x `Count` |
-| `SOCKETS` | socket count | [FSocket](#structures) x `Count` |
-| `VIRTUALBONES` | virtual bone count | [FVirtualBone](#structures) x `Count` |
+## Skeleton attributes
+
+`SKELETON` body attributes:
+
+| Name | Data |
+|------|------|
+| `METADATA` | [FSkeletonMetadata](#structures) |
+| `BONES` | `TArray<FBone>` |
+| `SOCKETS` | `TArray<FSocket>` |
+| `VIRTUALBONES` | `TArray<FVirtualBone>` |
 
 ---
 
 ## Structures
 
+Wire layouts:
+
 ```csharp
+struct UEModelLOD
+{
+    FString Name;
+    TArray<FDataAttribute> Attributes; // see LOD attributes
+}
+
+struct FTexCoordEntry
+{
+    FString Name;                 // e.g. "UV0", "UV1"
+    TArray<FMeshUVFloat> UVs;
+}
+
+struct FNormal
+{
+    float BinormalSign;
+    FVector Normal;
+}
+
+struct FSkeletonMetadata
+{
+    FString Path;
+}
+
 struct FVertexColor
 {
     FString Name;
@@ -67,7 +98,7 @@ struct FMaterial
 
 struct FWeight
 {
-    uint16 Bone; // bone index
+    uint16 Bone;
     int32 VertexIndex;
     float Weight;
 }
@@ -96,7 +127,7 @@ struct FBone
 struct FSocket
 {
     FString SocketName;
-    FString BoneName; // parent bone
+    FString BoneName;
     FVector RelativeLocation;
     FQuat RelativeRotation;
     FVector RelativeScale;
@@ -113,6 +144,18 @@ struct FConvexMeshCollision
 {
     FString Name;
     TArray<FVector> VertexData;
-    TArray<int32> IndexData; // triangle list
+    TArray<int32> IndexData;      // triangle list
+}
+```
+
+Logical view of the `SKELETON` attribute bag (not serialized as a flat struct):
+
+```csharp
+struct UEModelSkeleton
+{
+    FSkeletonMetadata Metadata;
+    TArray<FBone> Bones;
+    TArray<FSocket> Sockets;
+    TArray<FVirtualBone> VirtualBones;
 }
 ```

@@ -2,15 +2,19 @@
 
 Binary layout for `.ueanim` files (`Identifier = "UEANIM"`).
 
+Latest format only. Shared header / [payload sections](generic.md#file-payload) / `FDataAttribute` framing: [generic.md](generic.md).
+
 ---
 
-## Data Chunks
+## Sections
 
-| HeaderName | Count | Data |
-|------------|-------|------|
-| `METADATA` | `1` | [FAnimMetadata](#structures) |
-| `TRACKS` | track count | [FTrack](#structures) x `Count` |
-| `CURVES` | curve count | [FCurve](#structures) x `Count` |
+Top-level `TArray<FDataAttribute>` after the header:
+
+| Name | Data |
+|------|------|
+| `METADATA` | [FAnimMetadata](#structures) |
+| `TRACKS` | `TArray<FTrack>` |
+| `CURVES` | `TArray<FCurve>` |
 
 ---
 

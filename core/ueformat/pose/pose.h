@@ -1,15 +1,17 @@
 #pragma once
 
+#include "types.h"
 #include "ueformat/general/archive.h"
+#include "ueformat/infrastructure/types.h"
 
 namespace UEFormat
 {
     class UEPose
     {
+    public:
+        TArray<FPoseData> Poses;
+        TArray<FString> CurveNames;
     };
 
-    inline FArchive& operator<<(FArchive& archive, UEPose& /*pose*/)
-    {
-        return archive;
-    }
+    FArchive& operator<<(FArchive& archive, UEPose& pose);
 }
