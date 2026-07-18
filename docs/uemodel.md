@@ -2,38 +2,43 @@
 
 Binary layout for `.uemodel` files (`Identifier = "UEMODEL"`).
 
-Latest format only. Shared header / [payload sections](generic.md#file-payload) / `FDataAttribute` framing: [generic.md](generic.md).
+Latest format only. Shared header / [attribute sets](generic.md#attribute-sets): [generic.md](generic.md).
 
 ---
 
-## Sections
+## Top-level attribute set
 
-Top-level `TArray<FDataAttribute>` after the header:
+After the header, one `FDataAttributeSet`:
 
-| Name | Data |
-|------|------|
+| Name | `Data` layout |
+|------|---------------|
 | `LODS` | `TArray<UEModelLOD>` |
-| `SKELETON` | `TArray<FDataAttribute>` |
+| `SKELETON` | `FDataAttributeSet` |
 | `COLLISION` | `TArray<FConvexMeshCollision>` |
 
 ---
 
-## LOD attributes
+## `UEModelLOD`
 
-Each `UEModelLOD` is:
+Each element of `LODS`:
 
-```text
-FString Name                 // e.g. "LOD0"
-TArray<FDataAttribute>       // mesh attributes
+```cpp
+struct UEModelLOD
+{
+    FString Name;
+    FDataAttributeSet Attributes;
+}
 ```
 
-| Name | Data |
-|------|------|
+### LOD attribute set
+
+| Name | `Data` layout |
+|------|---------------|
 | `VERTICES` | `TArray<FVector>` |
 | `NORMALS` | `TArray<FNormal>` |
 | `TANGENTS` | `TArray<FVector>` |
 | `TEXCOORDS` | `TArray<FTexCoordEntry>` |
-| `INDICES` | `TArray<uint32>` |
+| `INDICES` | `TArray<u32>` |
 | `VERTEXCOLORS` | `TArray<FVertexColor>` |
 | `MATERIALS` | `TArray<FMaterial>` |
 | `WEIGHTS` | `TArray<FWeight>` |
@@ -41,39 +46,43 @@ TArray<FDataAttribute>       // mesh attributes
 
 ---
 
-## Skeleton attributes
+## `SKELETON` attribute set
 
-`SKELETON` body attributes:
+`Data` of the top-level `SKELETON` attribute is itself an `FDataAttributeSet`:
 
-| Name | Data |
-|------|------|
-| `METADATA` | [FSkeletonMetadata](#structures) |
+| Name | `Data` layout |
+|------|---------------|
+| `METADATA` | `FSkeletonMetadata` |
 | `BONES` | `TArray<FBone>` |
 | `SOCKETS` | `TArray<FSocket>` |
 | `VIRTUALBONES` | `TArray<FVirtualBone>` |
+
+Logical fields (not a flat wire struct):
+
+```cpp
+struct UEModelSkeleton
+{
+    FSkeletonMetadata Metadata;
+    TArray<FBone> Bones;
+    TArray<FSocket> Sockets;
+    TArray<FVirtualBone> VirtualBones;
+}
+```
 
 ---
 
 ## Structures
 
-Wire layouts:
-
-```csharp
-struct UEModelLOD
-{
-    FString Name;
-    TArray<FDataAttribute> Attributes; // see LOD attributes
-}
-
+```cpp
 struct FTexCoordEntry
 {
-    FString Name;                 // e.g. "UV0", "UV1"
+    FString Name;
     TArray<FMeshUVFloat> UVs;
 }
 
 struct FNormal
 {
-    float BinormalSign;
+    f32 BinormalSign;
     FVector Normal;
 }
 
@@ -92,15 +101,15 @@ struct FMaterial
 {
     FString MaterialName;
     FString MaterialPath;
-    int32 FirstIndex;
-    int32 NumFaces;
+    i32 FirstIndex;
+    i32 NumFaces;
 }
 
 struct FWeight
 {
-    uint16 Bone;
-    int32 VertexIndex;
-    float Weight;
+    u16 Bone;
+    i32 VertexIndex;
+    f32 Weight;
 }
 
 struct FMorphTarget
@@ -113,13 +122,13 @@ struct FMorphData
 {
     FVector PositionDelta;
     FVector TangentZDelta;
-    uint32 VertexIndex;
+    u32 VertexIndex;
 }
 
 struct FBone
 {
     FString BoneName;
-    int32 ParentIndex;
+    i32 ParentIndex;
     FVector Position;
     FQuat Orientation;
 }
@@ -144,18 +153,6 @@ struct FConvexMeshCollision
 {
     FString Name;
     TArray<FVector> VertexData;
-    TArray<int32> IndexData;      // triangle list
-}
-```
-
-Logical view of the `SKELETON` attribute bag (not serialized as a flat struct):
-
-```csharp
-struct UEModelSkeleton
-{
-    FSkeletonMetadata Metadata;
-    TArray<FBone> Bones;
-    TArray<FSocket> Sockets;
-    TArray<FVirtualBone> VirtualBones;
+    TArray<i32> IndexData;
 }
 ```

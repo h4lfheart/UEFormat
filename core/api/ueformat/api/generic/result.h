@@ -9,8 +9,6 @@
 #include "ueformat/generic/save_options.h"
 #include "ueformat/infrastructure/types.h"
 
-// Bridge Result / Status live in UEFormat::API; save options come from lib.
-
 namespace UEFormat::API
 {
     enum class Status : int32_t

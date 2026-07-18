@@ -2,16 +2,16 @@
 
 Binary layout for `.uepose` files (`Identifier = "UEPOSE"`).
 
-Latest format only. Shared header / [payload sections](generic.md#file-payload) / `FDataAttribute` framing: [generic.md](generic.md).
+Latest format only. Shared header / [attribute sets](generic.md#attribute-sets): [generic.md](generic.md).
 
 ---
 
-## Sections
+## Top-level attribute set
 
-Top-level `TArray<FDataAttribute>` after the header:
+After the header, one `FDataAttributeSet`:
 
-| Name | Data |
-|------|------|
+| Name | `Data` layout |
+|------|---------------|
 | `POSES` | `TArray<FPoseData>` |
 | `CURVES` | `TArray<FString>` |
 
@@ -19,7 +19,7 @@ Top-level `TArray<FDataAttribute>` after the header:
 
 ## Structures
 
-```csharp
+```cpp
 struct FPoseData
 {
     FString PoseName;
@@ -37,7 +37,7 @@ struct FPoseKey
 
 struct FPoseCurveInfluence
 {
-    int32 CurveIndex;
-    float Influence;
+    i32 CurveIndex;
+    f32 Influence;
 }
 ```

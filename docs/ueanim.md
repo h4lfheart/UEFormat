@@ -2,17 +2,17 @@
 
 Binary layout for `.ueanim` files (`Identifier = "UEANIM"`).
 
-Latest format only. Shared header / [payload sections](generic.md#file-payload) / `FDataAttribute` framing: [generic.md](generic.md).
+Latest format only. Shared header / [attribute sets](generic.md#attribute-sets): [generic.md](generic.md).
 
 ---
 
-## Sections
+## Top-level attribute set
 
-Top-level `TArray<FDataAttribute>` after the header:
+After the header, one `FDataAttributeSet`:
 
-| Name | Data |
-|------|------|
-| `METADATA` | [FAnimMetadata](#structures) |
+| Name | `Data` layout |
+|------|---------------|
+| `METADATA` | `FAnimMetadata` |
 | `TRACKS` | `TArray<FTrack>` |
 | `CURVES` | `TArray<FCurve>` |
 
@@ -20,15 +20,15 @@ Top-level `TArray<FDataAttribute>` after the header:
 
 ## Structures
 
-```csharp
+```cpp
 struct FAnimMetadata
 {
-    int32 NumFrames;
-    float FramesPerSecond;
+    i32 NumFrames;
+    f32 FramesPerSecond;
     FString RefPosePath;
-    uint8 AdditiveAnimType; // EAdditiveAnimationType
-    uint8 RefPoseType; // EAdditiveBasePoseType
-    int32 RefFrameIndex;
+    u8 AdditiveAnimType;
+    u8 RefPoseType;
+    i32 RefFrameIndex;
 }
 
 struct FTrack
@@ -47,20 +47,20 @@ struct FCurve
 
 struct FVectorKey
 {
-    int32 Frame;
+    i32 Frame;
     FVector Value;
 }
 
 struct FQuatKey
 {
-    int32 Frame;
+    i32 Frame;
     FQuat Value;
 }
 
 struct FFloatKey
 {
-    int32 Frame;
-    float Value;
+    i32 Frame;
+    f32 Value;
 }
 ```
 

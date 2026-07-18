@@ -13,25 +13,27 @@ All multi-byte integers and floats are **little-endian**. Integers are signed un
 | Type | Size | Encoding |
 |------|------|----------|
 | `bool` | 1 | `0` = false, non-zero = true |
-| `uint8` | 1 | Unsigned byte |
-| `uint16` | 2 | Unsigned short |
-| `int32` | 4 | Signed int |
-| `uint32` | 4 | Unsigned int |
-| `float` | 4 | IEEE-754 single |
-| `FVector` | 12 | `float X, Y, Z` |
-| `FQuat` | 16 | `float X, Y, Z, W` |
-| `FColor` | 4 | `uint8 R, G, B, A` |
-| `FMeshUVFloat` | 8 | `float U, V` |
+| `u8` | 1 | Unsigned 8-bit |
+| `u16` | 2 | Unsigned 16-bit |
+| `i32` | 4 | Signed 32-bit |
+| `u32` | 4 | Unsigned 32-bit |
+| `f32` | 4 | IEEE-754 single |
+| `FVector` | 12 | `f32 X, Y, Z` |
+| `FQuat` | 16 | `f32 X, Y, Z, W` |
+| `FColor` | 4 | `u8 R, G, B, A` |
+| `FMeshUVFloat` | 8 | `f32 U, V` |
 | `FString` | 4 + N | See below |
 | `TArray<T>` | 4 + ... | See below |
 
 ### FString
 
-```csharp
+UTF-8 bytes, no null terminator.
+
+```cpp
 struct FString
 {
-    int32 Length;
-    uint8[Length] Data; // UTF-8, no null terminator
+    i32 Length;
+    u8[Length] Data;
 }
 ```
 
@@ -39,15 +41,13 @@ struct FString
 
 Inline count followed by that many elements:
 
-```csharp
+```cpp
 struct TArray<T>
 {
-    int32 Count;
+    i32 Count;
     T[Count] Elements;
 }
 ```
-
-Variable-length payloads inside [`FDataAttribute`](#fdataattribute) `Data` use `TArray`.
 
 ### Fixed magic string
 
@@ -57,12 +57,12 @@ Variable-length payloads inside [`FDataAttribute`](#fdataattribute) `Data` use `
 
 ## File Header
 
-```csharp
+```cpp
 struct FUEFormatHeader
 {
-    uint8[8] Magic; // "UEFORMAT"
+    u8[8] Magic; // "UEFORMAT"
     FString Identifier; // "UEMODEL" | "UEANIM" | "UEPOSE"
-    uint8 FileVersion; // LatestVersion (AttributeSetFormat = 10)
+    u8 FileVersion;
     FString ObjectName;
     FString ObjectPath;
     bool IsCompressed;
@@ -71,57 +71,81 @@ struct FUEFormatHeader
 
 ### Compression block (only if `IsCompressed == true`)
 
-```csharp
+```cpp
 FString CompressionFormat; // "GZIP" | "ZSTD"
-int32 UncompressedSize;
-int32 CompressedSize;
+i32 UncompressedSize;
+i32 CompressedSize;
 ```
 
 Data bytes follow the header: compressed `CompressedSize` bytes when `IsCompressed`, otherwise the raw remaining file.
 
 ---
 
-## Attribute Framing
+## Attribute Sets
 
-### FDataAttribute
+Every file body (and several nested regions) is an **attribute set**: a counted list of named, length-prefixed payloads. Order is not guaranteed. Empty optional attributes may be omitted.
 
-Named length-prefixed payload. Layout of `Data` is determined by `Name`. There is **no** per-attribute element count — arrays live inside `Data` as `TArray<T>`.
+### Wire layout
 
-```csharp
+```cpp
 struct FDataAttribute
 {
     FString Name;
-    int32 ByteSize;
-    uint8[ByteSize] Data;
+    i32 ByteSize;
+    u8[ByteSize] Data;
+}
+
+struct FDataAttributeSet
+{
+    i32 Count;
+    FDataAttribute[Count] Attributes;
 }
 ```
 
-**Reading**
+`ByteSize` is the exact size of `Data` in bytes. It lets readers skip unknown names without understanding the payload.
 
-1. Read `Name` and `ByteSize`.
-2. If the name is known, deserialize the typed layout for `Data` directly from the archive (in place).
-3. If the name is unknown, `Skip(ByteSize)`.
+There is **no** separate element count on `FDataAttribute`. If `Data` holds an array, that array is encoded as a normal `TArray<T>` *inside* `Data`.
 
-`ByteSize` exists so unknown attributes can be skipped. Known attributes do not need a sub-archive or EOF loop — the typed payload drives how many bytes are consumed.
+### What goes in `Data`
+
+`Name` selects the typed layout. Typical cases:
+
+| `Data` contains | Example names |
+|-----------------|---------------|
+| A single struct | `METADATA` |
+| A `TArray<T>` | `LODS`, `TRACKS`, `VERTICES` |
+| Another nested `FDataAttributeSet` | `SKELETON` body; LOD mesh attributes |
+
+Nested attribute sets use the **same** `FDataAttributeSet` framing again inside the parent's `Data`.
 
 ### File payload
 
-After the header / decompression, every file payload is:
+After the header / decompression, the remainder of the file is **one** top-level `FDataAttributeSet`. Section names for that set are defined per identifier:
+
+- [uemodel.md](uemodel.md)
+- [ueanim.md](ueanim.md)
+- [uepose.md](uepose.md)
+
+### Worked nest (`.uemodel`)
 
 ```text
-TArray<FDataAttribute>  // sections for that identifier
+FUEFormatHeader
+FDataAttributeSet                          ← file payload
+  └─ "LODS" → TArray<UEModelLOD>
+       └─ each UEModelLOD:
+            FString Name
+            FDataAttributeSet              ← LOD mesh attributes
+              ├─ "VERTICES" → TArray<FVector>
+              ├─ "INDICES"  → TArray<u32>
+              └─ ...
+  └─ "SKELETON" → FDataAttributeSet        ← skeleton attributes
+       ├─ "METADATA" → FSkeletonMetadata
+       ├─ "BONES"    → TArray<FBone>
+       └─ ...
+  └─ "COLLISION" → TArray<FConvexMeshCollision>
 ```
 
-Wire order:
-
-```text
-int32   SectionCount
-SectionCount × FDataAttribute
-```
-
-Section names and payloads are defined per identifier ([uemodel.md](uemodel.md), [ueanim.md](ueanim.md), [uepose.md](uepose.md)). Section order is **not guaranteed**. Empty optional sections may be omitted.
-
-Section bodies may themselves be containers of `FDataAttribute`s (for example each `UEModelLOD` holds a `TArray<FDataAttribute>` of mesh attributes).
+Each arrow is the typed contents of that attribute's `Data` field.
 
 ---
 
