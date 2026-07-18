@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <format>
 #include <string_view>
 
 #include "archive.h"
@@ -12,6 +13,13 @@ namespace UEFormat
     inline constexpr std::string_view ModelIdentifier = "UEMODEL";
     inline constexpr std::string_view AnimIdentifier = "UEANIM";
     inline constexpr std::string_view PoseIdentifier = "UEPOSE";
+
+    inline bool IsValidIdentifier(std::string_view identifier)
+    {
+        return identifier == ModelIdentifier
+            || identifier == AnimIdentifier
+            || identifier == PoseIdentifier;
+    }
 
     struct FUEFormatHeader
     {
@@ -43,7 +51,25 @@ namespace UEFormat
             throw UEFormatException("Invalid magic");
         }
 
-        archive << header.Identifier << header.FileVersion << header.ObjectName << header.ObjectPath << header.IsCompressed;
+        archive << header.Identifier;
+
+        if (archive.IsLoading() && !IsValidIdentifier(header.Identifier))
+        {
+            throw UEFormatException("Unknown identifier '" + header.Identifier + "'");
+        }
+
+        archive << header.FileVersion;
+
+        if (archive.IsLoading() && header.FileVersion < EUEFormatVersion::AttributeSetFormat)
+        {
+            throw UEFormatException(std::format(
+                "File version {} too low, earliest supported version by the core library is {}",
+                static_cast<int>(header.FileVersion),
+                static_cast<int>(EUEFormatVersion::AttributeSetFormat)
+            ));
+        }
+
+        archive << header.ObjectName << header.ObjectPath << header.IsCompressed;
 
         if (header.IsCompressed)
         {

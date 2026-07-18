@@ -22,7 +22,6 @@ An intermediate 3D exchange format for Unreal Engine asset extraction.
 - [CUE4Parse](https://github.com/FabianFG/CUE4Parse)
 
 ## Format Specification
-Latest version only (`EUEFormatVersion.LatestVersion` = 10). Wire types use `u8` / `u16` / `i32` / `u32` / `f32`.
 - [Generic](https://github.com/h4lfheart/UEFormat/tree/main/docs/generic.md)
 - [UEModel](https://github.com/h4lfheart/UEFormat/tree/main/docs/uemodel.md)
 - [UEAnim](https://github.com/h4lfheart/UEFormat/tree/main/docs/ueanim.md)
@@ -31,6 +30,12 @@ Latest version only (`EUEFormatVersion.LatestVersion` = 10). Wire types use `u8`
 ## Core Library
 
 C++23 library under [`core/`](https://github.com/h4lfheart/UEFormat/tree/main/core) for reading and writing the latest format (`AttributeSetFormat` / v10).
+
+Compression (GZIP / ZSTD) is provided via git submodules under `core/external/` (`zlib`, `zstd`). After cloning, run:
+
+```bash
+git submodule update --init --recursive
+```
 
 | Target | CMake | Role |
 |--------|-------|------|
@@ -61,6 +66,8 @@ UEModel& model = std::get<UEModel>(container.Object);
 FSaveOptions options;
 options.ObjectName = "MyMesh";
 options.ObjectPath = "/Game/Meshes/MyMesh";
+options.Compression = EFileCompressionFormat::ZSTD; // optional; level defaults to 6
+// options.CompressionLevel = 6;
 
 TArray<u8> out = ctx.Save(model, options);
 ```
@@ -77,7 +84,8 @@ Stable C entry points for interop (descriptors in, buffers out):
 UEFormatSaveOptions options = {
     .object_name = "MyMesh",
     .object_path = "/Game/Meshes/MyMesh",
-    .compression = UEFORMAT_COMPRESSION_NONE,
+    .compression = UEFORMAT_COMPRESSION_ZSTD,
+    .compression_level = 6, /* 0 = default (6) */
 };
 
 UEFormatBufferResult saved = ueformat_save_model(&desc, &options);

@@ -1,21 +1,16 @@
 #pragma once
 
 #include "archive.h"
+#include "compression.h"
 
 namespace UEFormat
 {
-    enum class EFileCompressionFormat : u8
-    {
-        None = 0,
-        GZIP = 1,
-        ZSTD = 2,
-    };
-
     struct FSaveOptions
     {
         FString ObjectName;
         FString ObjectPath;
         EFileCompressionFormat Compression = EFileCompressionFormat::None;
+        i32 CompressionLevel = DefaultCompressionLevel;
         EUEFormatVersion FileVersion = EUEFormatVersion::LatestVersion;
     };
 }

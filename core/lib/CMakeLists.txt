@@ -13,3 +13,4 @@ add_library(ueformat STATIC ${UEFORMAT_SOURCES})
 add_library(ueformat::ueformat ALIAS ueformat)
 
 target_include_directories(ueformat PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(ueformat PRIVATE ZLIB::ZLIBSTATIC libzstd_static)

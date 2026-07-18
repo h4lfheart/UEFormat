@@ -1,0 +1,6 @@
+[submodule "core/external/zlib"]
+	path = core/external/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "core/external/zstd"]
+	path = core/external/zstd
+	url = https://github.com/facebook/zstd.git

@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "../infrastructure/exception.h"
 #include "../infrastructure/numeric.h"
 
 namespace UEFormat
@@ -50,6 +51,13 @@ namespace UEFormat
         template <typename T>
         FArchive& SerializePackedArray(std::vector<T>& values, i32 count)
         {
+            if (IsLoading())
+            {
+                if (count < 0 || static_cast<usize>(count) > Remaining())
+                {
+                    throw UEFormatException("Invalid packed array count");
+                }
+            }
             values.resize(static_cast<usize>(count));
             for (auto& value : values)
             {

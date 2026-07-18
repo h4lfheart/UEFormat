@@ -34,6 +34,7 @@ typedef struct UEFormatSaveOptions {
     const char* object_name;
     const char* object_path;
     uint8_t compression;
+    int32_t compression_level;
 } UEFormatSaveOptions;
 
 typedef struct UEFormatBufferResult {

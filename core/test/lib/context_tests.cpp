@@ -146,3 +146,63 @@ UEFORMAT_TEST(lib, pose_roundtrip)
     Check(VectorsEqual(out.Poses[0].Keys[0].Location, {0.0f, 1.0f, 0.0f}), "pose key location should survive round-trip");
     Check(out.CurveNames.size() == 1 && out.CurveNames[0] == "smile_curve", "curve name list should survive round-trip");
 }
+
+UEFORMAT_TEST(lib, model_zstd_roundtrip)
+{
+    using namespace UEFormat;
+    using Test::Check;
+
+    UEModel model;
+    UEModelLOD lod;
+    lod.Name = "LOD0";
+    lod.Vertices = {{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}};
+    lod.Indices = {0, 1, 0};
+    model.LODs.push_back(std::move(lod));
+
+    Context context;
+    const auto bytes = context.Save(model, {
+        .ObjectName = "ZstdMesh",
+        .ObjectPath = "/Game/Meshes/ZstdMesh",
+        .Compression = EFileCompressionFormat::ZSTD,
+        .CompressionLevel = 6,
+    });
+    const auto loaded = context.Load(bytes);
+
+    Check(loaded.Header.IsCompressed, "ZSTD save should set IsCompressed");
+    Check(loaded.Header.CompressionFormat == "ZSTD", "compression format should be ZSTD");
+    Check(loaded.Header.UncompressedSize > 0, "uncompressed size should be recorded");
+    Check(loaded.Header.CompressedSize > 0, "compressed size should be recorded");
+    Check(loaded.Header.CompressedSize <= loaded.Header.UncompressedSize, "compressed payload should not exceed uncompressed size for this fixture");
+
+    const auto& out = std::get<UEModel>(loaded.Object);
+    Check(out.LODs.size() == 1, "ZSTD LOD list should survive round-trip");
+    Check(VectorsEqual(out.LODs[0].Vertices[0], {1.0f, 2.0f, 3.0f}), "ZSTD vertex data should survive round-trip");
+}
+
+UEFORMAT_TEST(lib, model_gzip_roundtrip)
+{
+    using namespace UEFormat;
+    using Test::Check;
+
+    UEModel model;
+    UEModelLOD lod;
+    lod.Name = "LOD0";
+    lod.Vertices = {{9.0f, 8.0f, 7.0f}};
+    lod.Indices = {0, 0, 0};
+    model.LODs.push_back(std::move(lod));
+
+    Context context;
+    const auto bytes = context.Save(model, {
+        .ObjectName = "GzipMesh",
+        .Compression = EFileCompressionFormat::GZIP,
+        .CompressionLevel = 6,
+    });
+    const auto loaded = context.Load(bytes);
+
+    Check(loaded.Header.IsCompressed, "GZIP save should set IsCompressed");
+    Check(loaded.Header.CompressionFormat == "GZIP", "compression format should be GZIP");
+
+    const auto& out = std::get<UEModel>(loaded.Object);
+    Check(out.LODs[0].Name == "LOD0", "GZIP LOD name should survive round-trip");
+    Check(VectorsEqual(out.LODs[0].Vertices[0], {9.0f, 8.0f, 7.0f}), "GZIP vertex data should survive round-trip");
+}

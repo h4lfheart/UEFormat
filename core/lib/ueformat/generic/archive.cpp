@@ -106,7 +106,7 @@ FArchive& FArchive::operator<<(FString& value) {
     i32 length = static_cast<i32>(value.size());
     *this << length;
     if (_loading) {
-        if (length < 0) {
+        if (length < 0 || static_cast<usize>(length) > Remaining()) {
             throw UEFormatException("Invalid FString length");
         }
         value.resize(static_cast<usize>(length));

@@ -18,5 +18,7 @@ namespace UEFormat
         UEFormatObject Object;
     };
 
+    FString ObjectIdentifier(const UEFormatObject& object);
+    FArchive& SerializeObject(FArchive& archive, UEFormatObject& object);
     FArchive& operator<<(FArchive& archive, UEFormatContainer& container);
 }

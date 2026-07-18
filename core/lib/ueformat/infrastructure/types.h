@@ -71,7 +71,7 @@ namespace UEFormat
         archive << count;
         if (archive.IsLoading())
         {
-            if (count < 0)
+            if (count < 0 || static_cast<usize>(count) > archive.Remaining())
             {
                 throw UEFormatException("Invalid TArray count");
             }

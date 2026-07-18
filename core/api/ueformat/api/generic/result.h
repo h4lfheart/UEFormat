@@ -54,16 +54,21 @@ namespace UEFormat::API
         out.ObjectName = options.object_name ? options.object_name : "";
         out.ObjectPath = options.object_path ? options.object_path : "";
         out.Compression = static_cast<EFileCompressionFormat>(options.compression);
+        out.CompressionLevel = options.compression_level == 0
+            ? DefaultCompressionLevel
+            : options.compression_level;
         return out;
     }
 
     inline FSaveOptions ToSaveOptions(const char* objectName, const char* objectPath = "",
-        EFileCompressionFormat compression = EFileCompressionFormat::None)
+        EFileCompressionFormat compression = EFileCompressionFormat::None,
+        i32 compressionLevel = DefaultCompressionLevel)
     {
         FSaveOptions out;
         out.ObjectName = objectName ? objectName : "";
         out.ObjectPath = objectPath ? objectPath : "";
         out.Compression = compression;
+        out.CompressionLevel = compressionLevel == 0 ? DefaultCompressionLevel : compressionLevel;
         return out;
     }
 
