@@ -3,8 +3,8 @@
 
 # Runtime
 __pycache_
-core/build/
+build/
 cmake-build-*/
 
-# Testing
-test/
+# Local
+dev/

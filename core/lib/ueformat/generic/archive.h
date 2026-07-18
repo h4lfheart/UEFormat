@@ -60,8 +60,8 @@ namespace UEFormat
 
         void Skip(usize size);
 
-        [[nodiscard]] const std::vector<u8>& Bytes() const;
-        [[nodiscard]] std::vector<u8> StealBytes();
+        const std::vector<u8>& Bytes() const;
+        std::vector<u8> StealBytes();
 
         FArchive& operator<<(bool& value);
         FArchive& operator<<(u8& value);
