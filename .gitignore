@@ -1,4 +1,10 @@
+# IDE
 .idea
-Blender/zstd/*
-__pycache__
-/Unreal/UEFormat/Intermediate
+
+# Runtime
+__pycache_
+core/build/
+cmake-build-*/
+
+# Testing
+test/
