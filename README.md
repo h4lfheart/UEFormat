@@ -66,8 +66,7 @@ UEModel& model = std::get<UEModel>(container.Object);
 FSaveOptions options;
 options.ObjectName = "MyMesh";
 options.ObjectPath = "/Game/Meshes/MyMesh";
-options.Compression = EFileCompressionFormat::ZSTD; // optional; level defaults to 6
-// options.CompressionLevel = 6;
+options.Compression = EFileCompressionFormat::ZSTD;
 
 TArray<u8> out = ctx.Save(model, options);
 ```
@@ -85,7 +84,7 @@ UEFormatSaveOptions options = {
     .object_name = "MyMesh",
     .object_path = "/Game/Meshes/MyMesh",
     .compression = UEFORMAT_COMPRESSION_ZSTD,
-    .compression_level = 6, /* 0 = default (6) */
+    .compression_level = 6, // default level
 };
 
 UEFormatBufferResult saved = ueformat_save_model(&desc, &options);
