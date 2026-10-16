@@ -261,6 +261,16 @@ USkeletalMesh* UEFModelFactory::CreateSkeletalMesh(TArray<FLODData>& LODData, FS
 
 	SkeletalMesh->SetSkeleton(Skeleton);
 	Skeleton->MergeAllBonesToBoneTree(SkeletalMesh);
+	
+	for (const auto& VirtualBone : SkeletonData.VirtualBones)
+	{
+		Skeleton->AddNewNamedVirtualBone(
+			VirtualBone.SourceBoneName.c_str(),
+			VirtualBone.TargetBoneName.c_str(),
+			VirtualBone.VirtualBoneName.c_str()
+		);
+	}
+	
 	Skeleton->SetPreviewMesh(SkeletalMesh);
 
 	Skeleton->PostEditChange();
@@ -298,10 +308,7 @@ USkeleton* UEFModelFactory::CreateSkeleton(FString Name, UObject* Parent, EObjec
 		NewSocket->RelativeRotation = FQuat(Socket.SocketRot).Rotator();
 		NewSocket->RelativeScale = FVector(Socket.SocketScale);
 		Skeleton->Sockets.Add(NewSocket);
-	}
-
-	for (const auto& VirtualBone : Data.VirtualBones)
-		Skeleton->AddNewNamedVirtualBone(VirtualBone.SourceBoneName.c_str(), VirtualBone.TargetBoneName.c_str(), VirtualBone.VirtualBoneName.c_str());	
+	}	
 	
 	return Skeleton;
 }
